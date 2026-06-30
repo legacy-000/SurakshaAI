@@ -1,0 +1,4 @@
+# Keep backups directory tracked in git but ignore the actual backup files
+*.sql
+*.tar
+!#gitkeep
