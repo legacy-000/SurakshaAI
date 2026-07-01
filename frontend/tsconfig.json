@@ -19,9 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./frontend/*"]
+      "@/*": ["./*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "backend", "ai_engine", "database"]
+  "exclude": ["node_modules"]
 }

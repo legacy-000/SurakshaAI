@@ -7,14 +7,14 @@ install-backend:
 	pip install -r requirements.txt
 
 install-frontend:
-	npm install
+	cd frontend && npm install
 
 # --- Running Services ---
 run-backend:
 	uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 run-frontend:
-	npm run dev
+	cd frontend && npm run dev
 
 # --- Docker Control ---
 docker-up:
@@ -38,7 +38,7 @@ lint-backend:
 	flake8 backend/ ai_engine/
 
 lint-frontend:
-	npm run lint
+	cd frontend && npm run lint
 
 # --- Database ---
 db-migrate:

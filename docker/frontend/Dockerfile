@@ -2,11 +2,10 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY ./frontend/package.json ./frontend/package-lock.json* ./
 RUN npm ci
 
-COPY ./frontend ./frontend
-COPY tsconfig.json tailwind.config.ts next.config.ts ./
+COPY ./frontend ./
 
 # Disable next telemetry and build
 ENV NEXT_TELEMETRY_DISABLED=1
