@@ -1,0 +1,15 @@
+{
+  "type": "webclient",
+  "framework": "nextjs",
+  "build_command": "npm run build",
+  "output_dir": "out",
+  "source": ".",
+  "catalyst": {
+    "app_name": "suraksha-frontend",
+    "routing": {
+      "rewrites": [
+        { "source": "/api/(.*)", "destination": "https://surakshaai.catalystserverless.com/api/$1" }
+      ]
+    }
+  }
+}

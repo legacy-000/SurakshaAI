@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "zcil deploy webclient"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",

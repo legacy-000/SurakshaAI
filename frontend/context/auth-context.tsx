@@ -17,24 +17,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("suraksha_token");
+    // Support both legacy and Catalyst tokens
+    const savedToken = localStorage.getItem("catalyst_auth_token") || localStorage.getItem("suraksha_token");
     if (savedToken) {
       setToken(savedToken);
-      // Mock loading profile
+      // Mock loading profile (In production, fetch from Catalyst Auth)
       setUser({ role: "officer", name: "Officer" });
     }
   }, []);
 
-  const login = (token: string, user: any) => {
-    localStorage.setItem("suraksha_token", token);
-    setToken(token);
-    setUser(user);
+  const login = (newToken: string, userData: any) => {
+    localStorage.setItem("catalyst_auth_token", newToken);
+    setToken(newToken);
+    setUser(userData);
   };
 
   const logout = () => {
+    localStorage.removeItem("catalyst_auth_token");
     localStorage.removeItem("suraksha_token");
     setToken(null);
     setUser(null);
+    // Redirect to Catalyst logout if in production
+    if (process.env.NEXT_PUBLIC_CATALYST_ENV === "production") {
+      window.location.href = "/auth/logout";
+    }
   };
 
   const isAuthenticated = !!token;
@@ -45,4 +51,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
 export default AuthContext;
