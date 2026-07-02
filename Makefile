@@ -1,30 +1,50 @@
-.PHONY: install run-backend run-frontend docker-up docker-down test lint clean
+.PHONY: install install-backend install-frontend deploy deploy-backend deploy-frontend run-backend run-frontend test lint lint-backend lint-frontend clean catalyst-init catalyst-logs
+
+# ==============================================================================
+# SURAKSHA AI - CATALYST DEPLOYMENT MAKEFILE
+# ==============================================================================
 
 # --- Installation ---
 install: install-backend install-frontend
 
 install-backend:
-	pip install -r requirements.txt
+	pip install -r backend/requirements.txt
 
 install-frontend:
 	cd frontend && npm install
 
-# --- Running Services ---
+# --- Catalyst Development (Local) ---
 run-backend:
-	uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+	cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 run-frontend:
 	cd frontend && npm run dev
 
-# --- Docker Control ---
-docker-up:
-	docker-compose up -d
+# --- Catalyst Deployment ---
+deploy-backend:
+	@echo "Deploying backend to Catalyst Serverless..."
+	zcrun deploy backend/
 
-docker-down:
-	docker-compose down
+deploy-frontend:
+	@echo "Deploying frontend to Catalyst Web Client Hosting..."
+	cd frontend && zcil deploy webclient
 
-docker-logs:
-	docker-compose logs -f
+deploy: deploy-backend deploy-frontend
+	@echo "Deployed all services to Zoho Catalyst!"
+
+# --- Catalyst Initialization & Management ---
+catalyst-init:
+	@echo "Initializing Catalyst project..."
+	zcil login
+	zcrun init
+
+catalyst-logs:
+	@echo "Fetching Catalyst function logs..."
+	zcrun logs
+
+catalyst-status:
+	@echo "Checking Catalyst deployment status..."
+	zcrun status
 
 # --- Testing & Linting ---
 test:
@@ -39,13 +59,6 @@ lint-backend:
 
 lint-frontend:
 	cd frontend && npm run lint
-
-# --- Database ---
-db-migrate:
-	alembic upgrade head
-
-db-seed:
-	python database/seed/seed_data.py
 
 # --- Cleaning ---
 clean:
