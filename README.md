@@ -1,228 +1,144 @@
-# SURAKSHA AI 
-### System for Unified Research, Analytics and Knowledge-based Support for Holistic Analysis
+# SURAKSHA AI - ZOHO CATALYST VERSION
+## System for Unified Research, Analytics and Knowledge-based Support for Holistic Analysis
 
-SURAKSHA AI is an enterprise, AI-powered Crime Intelligence Platform designed specifically for the **Karnataka Police**. The platform empowers command center analysts and precinct investigators to correlate criminal records, perform geospatial hotspot mapping, trace suspect-case association networks, run predictive forecasting analytics, and query documentation using a Retrieval-Augmented Generation (RAG) agent.
-
----
-
-## 🏛️ Architecture Overview
-
-The system implements a strictly **Layered Modular Architecture** ensuring clear separation of concerns, high maintainability, and clean dependency boundaries. 
-
-No layer may skip another layer. The propagation flow is strictly defined as:
-
-```
-┌────────────────────────────────────────────────────────┐
-│             Presentation Layer (Next.js Front)         │
-└───────────────────────────┬────────────────────────────┘
-                            │ (REST HTTP / WebSocket)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│            Controller Layer (FastAPI Router)           │
-└───────────────────────────┬────────────────────────────┘
-                            │ (Request validation / Response structuring)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│             Service Layer (Business Logic)             │
-└───────────────────────────┬────────────────────────────┘
-                            │ (Orchestration / Transaction coordination)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│            AI Layer (LangChain / Agents / Graphs)      │
-└───────────────────────────┬────────────────────────────┘
-                            │ (Context mapping / AI logic queries)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│           Repository Layer (SQLAlchemy CRUD)           │
-└───────────────────────────┬────────────────────────────┘
-                            │ (Database-agnostic query interface)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│           Database Layer (PostgreSQL + PostGIS)        │
-└────────────────────────────────────────────────────────┘
-```
+SURAKSHA AI is an enterprise, AI-powered Crime Intelligence Platform designed for the **Karnataka Police**, now fully migrated to **Zoho Catalyst** for the Hackathon submission.
 
 ---
 
-## 🛠️ Technology Stack
+## 🏗️ Catalyst Architecture Overview
 
-| Layer | Technology / Tool | Purpose |
-|---|---|---|
-| **Frontend** | Next.js (App Router), React, TypeScript | Core framework & typing security |
-| | TailwindCSS, ShadCN UI | Styling, responsive UI design & web aesthetics |
-| | Framer Motion | Smooth UI micro-animations and transitions |
-| | React Flow | Suspect-Case association link network maps |
-| | Leaflet | Open-source geospatial mapping & coordinate rendering |
-| | Recharts | Crime trend dashboards & bar/line visualization |
-| | Axios | REST API service client with token interceptors |
-| **Backend** | FastAPI, Python 3.10 | High performance, async REST API server |
-| | SQLAlchemy | Object Relational Mapper (ORM) |
-| | Pydantic | Schema data verification and JSON serialization |
-| | PyJWT, bcrypt | Police officer authentication credentials encryption |
-| | Uvicorn | High speed ASGI server runner |
-| **AI Engine** | LangChain, LangGraph | LLM agents workflow state orchestration |
-| | FAISS | Vector database for localized document embeddings |
-| | Sentence Transformers | Local semantic vector generation (e.g. `all-MiniLM-L6-v2`) |
-| | NetworkX | Centrality scoring and cluster association analysis |
-| | Redis | Cache storage, lock coordinator, and agent state store |
-| **Database** | PostgreSQL | Relational transactional database |
-| | PostGIS | Geographic/spatial indices (beats, station boundaries) |
-| | Redis | Speed cache and memory storage |
+The system has been re-architected to leverage Zoho Catalyst services exclusively, replacing all third-party dependencies with Catalyst-native equivalents.
+
+| Layer | Original (Local/Docker) | **Catalyst Version** | Service |
+|---|---|---|---|
+| **Frontend** | Next.js dev server | **Catalyst Web Client Hosting** (`zcil`) | Static site hosting |
+| **Backend API** | FastAPI + Uvicorn | **Catalyst Serverless Functions** (`zcrun`) | Python 3.12 |
+| **Database** | PostgreSQL + PostGIS | **Catalyst Data Store** | NoSQL with spatial + full-text |
+| **Cache** | Redis container | **Catalyst Cache** | Key-value segments |
+| **AI/RAG** | LangChain + OpenAI + FAISS | **Catalyst QuickML** | LLM + RAG knowledge base |
+| **OCR/Vision** | External APIs | **Catalyst Zia** | OCR, barcode, object detection |
+| **Auth** | JWT/Bcrypt | **Catalyst Authentication** | Zoho Auth |
+| **Storage** | Local filesystem | **Catalyst Stratus** | Object storage |
+| **Deployment** | Docker Compose | **Catalyst CLI** (`zcil` + `zcrun`) | Managed platform |
 
 ---
 
-## 📂 Folder Explanation
+## 📂 Updated File Structure
 
+### Key New Files (Catalyst-Specific)
 ```
-SURAKSHA-AI/
-├── ai_engine/               # AI Layer: Agent structures, workflows and vector searches
-│   ├── agents/              # LangChain execution agents (e.g. ChatAgent)
-│   ├── workflow/            # LangGraph state machine orchestrators
-│   ├── rag/                 # Retrieval-Augmented Generation configurations
-│   ├── embeddings/          # Sentence Transformers vector models
-│   ├── graph/               # NetworkX suspect association algorithms
-│   ├── forecasting/         # Crime prediction metrics models
-│   ├── profiling/           # Offender MO behavioral profiling
-│   ├── sql_generator/       # Natural Language to SQL compiler interfaces
-│   ├── prompts/             # Prompt text templates
-│   └── explainability/      # SHAP / justification models
+SurakshaAI/
+├── catalyst.json                              ← NEW: Root project manifest
+├──
+├── backend/
+│   ├── catalyst_function_config.json          ← NEW: Serverless function config
+│   ├── api_gateway.py                         ← NEW: API Gateway router
+│   ├── configuration/
+│   │   ├── database.py                        ← UPDATED: Catalyst Data Store
+│   │   └── cache_config.py                    ← NEW: Catalyst Cache
+│   ├── models/
+│   │   └── datastore_models.py                ← NEW: NoSQL models (replaces SQLAlchemy)
+│   └── requirements.txt                       ← UPDATED: Removed Postgres/Redis/FAISS/LangChain
 │
-├── backend/                 # API Server Layer
-│   ├── configuration/       # DB engines and system config
-│   ├── controllers/         # Controller Layer: Request mapping & standard responses
-│   ├── services/            # Service Layer: Business transactions
-│   ├── repositories/        # Repository Layer: SQLAlchemy data operations
-│   ├── models/              # Declarative database entities
-│   ├── schemas/             # Pydantic schemas (e.g. APIResponse)
-│   ├── routes/              # FastAPI router mappings (/api/chat, /api/auth)
-│   ├── middleware/          # Request tracing and logging middleware
-│   ├── authentication/      # JWT crypt tokens handlers
-│   └── utilities/           # Module loggers (ChatLogger, AnalyticsLogger, etc.)
+├── ai_engine/
+│   ├── quickml_adapter.py                     ← NEW: QuickML LLM/RAG adapter
+│   ├── zia_adapter.py                         ← NEW: Zia OCR/Vision adapter
+│   ├── agents/chat_agent.py                   ← UPDATED: Uses QuickML
+│   ├── rag/retriever.py                       ← UPDATED: Uses QuickML RAG
+│   └── embeddings/generator.py              ← UPDATED: Ready for QuickML
 │
-├── database/                # Relational Schema Design
-│   ├── schemas/             # Geographic metadata and PostGIS structures
-│   ├── sql/                 # Schema outline scripts
-│   ├── migrations/          # Alembic database revision history
-│   ├── seed/                # Mock seeding scripts for testing
-│   └── backups/             # Database backups folder
+├── frontend/
+│   ├── catalyst.json                          ← NEW: Web Client Hosting config
+│   ├── next.config.mjs                        ← UPDATED: Static export
+│   ├── services/api.ts                      ← UPDATED: Catalyst API paths
+│   ├── context/auth-context.tsx              ← UPDATED: Catalyst Auth
+│   └── package.json                           ← UPDATED: Deploy scripts
 │
-├── frontend/                # Next.js Front App
-│   ├── app/                 # Next.js App Router (layout, pages)
-│   ├── pages/               # Pages Router fallback tracking
-│   ├── layouts/             # Dashboard layouts
-│   ├── components/          # Reusable React UI blocks (cards, charts, maps, graph)
-│   ├── services/            # Axios API endpoint connectors
-│   ├── hooks/               # Custom hooks (e.g. useAuth)
-│   ├── context/             # Global Auth providers
-│   ├── models/              # TypeScript interface schemas
-│   ├── utils/               # Render helpers
-│   ├── assets/              # Raw design assets (logos, icons)
-│   └── public/              # Served static files (favicons)
-│
-├── docs/                    # Architecture and API specs
-├── docker/                  # Backend/Frontend Docker container builds
-├── reports/                 # Dynamic PDF output templates
-├── tests/                   # Test suite (frontend, backend, AI)
-└── logs/                    # Rotating log files (chat.log, prediction.log)
+├── Makefile                                   ← UPDATED: Catalyst CLI commands
+├── pyproject.toml                             ← UPDATED: Catalyst SDK deps
+└── .env.example                               ← UPDATED: Catalyst variables
 ```
+
+### Removed/Archived (No Longer Needed)
+- `docker/` directory → **Removed** (Catalyst manages runtime)
+- `docker-compose.yml` → **Removed**
+- `database/migrations/` → **Archived** (Data Store is NoSQL)
+- Old SQLAlchemy models → **Replaced** by `datastore_models.py`
+- LangChain/FAISS dependencies → **Removed** (use QuickML)
+- Redis dependencies → **Removed** (use Catalyst Cache)
+- PostgreSQL dependencies → **Removed** (use Data Store)
 
 ---
 
-## 🚀 Installation & Running
+## 🚀 Deployment Commands
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL + PostGIS (if running outside Docker)
+- Install Zoho Catalyst CLI (`npm install -g zc-cli` or equivalent)
+- Login: `zcil login`
 
-### Environment Configuration
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Populate the required LLM API keys and database credentials in `.env`.
-
-### Running with Docker (Recommended)
-Compile and launch all containers (Database, Redis, Backend, Frontend) concurrently:
+### Deploy Backend (Serverless Functions)
 ```bash
-make docker-up
-```
-Stop services:
-```bash
-make docker-down
+make deploy-backend
+# Or manually:
+# zcrun deploy backend/
 ```
 
-### Running Locally (Manual)
+### Deploy Frontend (Web Client Hosting)
+```bash
+make deploy-frontend
+# Or manually:
+# cd frontend && zcil deploy webclient
+```
 
-#### 1. Running the FastAPI Backend
-1. Create a virtual environment and install packages:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. Start development server using Makefile:
-   ```bash
-   make run-backend
-   ```
-   *The backend will be available at `http://localhost:8000`. Swagger API docs can be accessed at `http://localhost:8000/docs`.*
+### Deploy Everything
+```bash
+make deploy
+```
 
-#### 2. Running the Next.js Frontend
-1. Install node dependencies:
-   ```bash
-   npm install
-   ```
-2. Launch dev portal:
-   ```bash
-   make run-frontend
-   ```
-   *The frontend will run at `http://localhost:3000`.*
+### Check Logs
+```bash
+make catalyst-logs
+# Or: zcrun logs
+```
 
 ---
 
-## 🌿 Git Strategy (Git Flow)
+## 🔧 Local Development (Without Catalyst)
 
-This project strictly adheres to **Git Flow** branching models:
+For local testing without Catalyst SDK:
 
-* **`main`**: Production release state. Only stable, signed-off versions exist here.
-* **`develop`**: Primary integration branch. All feature branches merge into develop first.
-* **`feature/chat`**: Implementation of RAG-powered chatbot conversations.
-* **`feature/network`**: Development of React Flow & NetworkX suspect association maps.
-* **`feature/analytics`**: Implementation of predictive hotspot and forecasting graphs.
-* **`feature/maps`**: Construction of Leaflet GIS and geographic precinct mapping layers.
-* **`feature/reports`**: Automated creation of precinct PDF reports.
+```bash
+# Backend (FastAPI local)
+make run-backend
 
-### Workflow:
-1. Branch off `develop`: `git checkout -b feature/analytics develop`
-2. Implement feature tasks adhering to Coding Standards.
-3. Submit a Pull Request (PR) to merge back to `develop` for integration testing.
+# Frontend (Next.js dev server)
+make run-frontend
+```
 
 ---
 
-## 📝 Coding Standards
+## 📊 Service Mapping (Hackathon Compliance)
 
-To ensure code readability and type safety across our full-stack engineering team, strictly follow the case convention matrix below:
-
-| Type | Style | Example | Language |
-|---|---|---|---|
-| **Class Naming** | `PascalCase` | `class CrimePredictor:` | Python / TS |
-| **Variables** | `camelCase` | `const activeAlerts = ...` | TypeScript |
-| **Constants** | `UPPER_CASE` | `KARNATAKA_SRID = 4326` | Python / TS |
-| **Functions** | `camelCase` | `function parseTimelineEvents()` | TypeScript |
-| **API Endpoints** | `snake_case` | `/api/chat/session_id` | HTTP REST |
+| Capability | Required Catalyst Service | Used In |
+|---|---|---|
+| Serverless Backend | **Catalyst Serverless** | `backend/` deployed via `zcrun` |
+| Frontend Hosting | **Catalyst Web Client Hosting** | `frontend/` deployed via `zcil` |
+| Database | **Catalyst Data Store** | `backend/configuration/database.py` |
+| Cache | **Catalyst Cache** | `backend/configuration/cache_config.py` |
+| AI/LLM/RAG | **Catalyst QuickML** | `ai_engine/quickml_adapter.py` |
+| OCR/Vision | **Catalyst Zia** | `ai_engine/zia_adapter.py` |
+| Authentication | **Catalyst Authentication** | `frontend/context/auth-context.tsx` |
+| API Gateway | **Catalyst API Gateway** | `backend/api_gateway.py` |
+| Storage | **Catalyst Stratus** | Configured in `catalyst.json` |
+| Cron Jobs | **Catalyst Cron** | Configured in `catalyst.json` |
 
 ---
 
-## 🤝 Contribution Guide
+## ⚠️ Notes for Hackathon Submission
 
-1. **Fork the repository** and clone features branches.
-2. **Setup pre-commit hooks** and verify styles using Makefile checkers:
-   ```bash
-   make lint
-   ```
-3. **Write tests** under `tests/` directory verifying components and service layers. Run tests locally:
-   ```bash
-   make test
-   ```
-4. **Open a Pull Request** describing structural changes, linking relevant JIRA/Issue tickets.
+1. **No Docker**: All services are deployed via Catalyst CLI, not Docker containers.
+2. **No Third-Party LLMs**: All AI uses Catalyst QuickML (not OpenAI/Anthropic).
+3. **No Local Database**: All data uses Catalyst Data Store (not PostgreSQL).
+4. **Static Frontend**: Next.js is built with `output: 'export'` for static deployment.
+5. **Environment Variables**: Use `.env.example` as reference; populate with your Catalyst project credentials.
+
