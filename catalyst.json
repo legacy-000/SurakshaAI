@@ -1,0 +1,89 @@
+{
+  "project": {
+    "name": "SurakshaAI",
+    "description": "AI-powered Crime Intelligence Platform for Karnataka Police",
+    "version": "1.0.0"
+  },
+  "stack": "python",
+  "type": "serverless",
+  "functions": [
+    {
+      "name": "suraksha-api",
+      "entry": "backend/main.py",
+      "runtime": "python312",
+      "memory": 512,
+      "timeout": 30,
+      "type": "http",
+      "env": {
+        "DB_TYPE": "catalyst_datastore",
+        "CACHE_TYPE": "catalyst_cache",
+        "AI_PROVIDER": "catalyst_quickml"
+      }
+    }
+  ],
+  "client": {
+    "name": "suraksha-frontend",
+    "source": "frontend/",
+    "build_command": "npm run build",
+    "output_dir": "out",
+    "framework": "nextjs",
+    "type": "webclient"
+  },
+  "datastore": {
+    "entities": [
+      "User", "Case", "Accused", "Victim", "Officer",
+      "CrimePattern", "Alert", "Prediction", "ChatContext",
+      "Investigation", "BehaviorProfile", "TimelineEvent"
+    ],
+    "indexes": {
+      "spatial": true,
+      "full_text": true
+    }
+  },
+  "cache": {
+    "segments": ["session_store", "prediction_cache", "graph_cache"],
+    "default_ttl": 3600
+  },
+  "api_gateway": {
+    "name": "suraksha-gateway",
+    "routes": [
+      { "path": "/api/auth/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/chat/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/analytics/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/network/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/dashboard/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/report/*", "function": "suraksha-api", "auth": true },
+      { "path": "/api/map/*", "function": "suraksha-api", "auth": true }
+    ],
+    "throttling": {
+      "rate_limit": 100,
+      "burst_limit": 200
+    }
+  },
+  "quickml": {
+    "rag_knowledge_base": "crime_documents",
+    "model_type": "text_generation"
+  },
+  "zia": {
+    "services": ["ocr", "object_detection", "barcode_scanner"]
+  },
+  "stratus": {
+    "buckets": ["evidence_files", "report_pdfs", "case_documents"]
+  },
+  "cron": [
+    {
+      "name": "prediction_refresh",
+      "description": "Refresh crime predictions daily",
+      "schedule": "0 0 * * *",
+      "function": "suraksha-api"
+    }
+  ],
+  "authentication": {
+    "provider": "ZohoAuth",
+    "routes": {
+      "login": "/auth/login",
+      "logout": "/auth/logout",
+      "callback": "/auth/callback"
+    }
+  }
+}
