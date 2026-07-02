@@ -1,29 +1,25 @@
 from typing import Any, Dict
-from backend.repositories.chat_repository import ChatRepository
+from ai_engine.quickml_adapter import QuickMLAdapter
 
 class ChatAgent:
     """
-    AI Agent that processes user query, coordinates with RAG and returns response.
-    Passes data to the Repository Layer to maintain chat persistence.
+    AI Agent that processes user query, coordinates with QuickML RAG and returns response.
+    Uses Zoho Catalyst QuickML instead of direct LangChain/OpenAI integration.
     """
-    def __init__(self, chat_repo: ChatRepository):
-        self.chat_repo = chat_repo
+    def __init__(self):
+        self.quickml = QuickMLAdapter()
 
     def process_chat_message(self, session_id: str, message: str) -> Dict[str, Any]:
-        # AI Layer calls Repository Layer to fetch existing history
-        history = self.chat_repo.get_by_session_id(session_id)
+        # Use QuickML RAG to get context-aware response
+        rag_response = self.quickml.rag_query(message, "crime_documents")
         
-        # Simulated RAG and LangChain orchestration (No actual API calls or logic)
-        response_text = "Simulated Chat Intelligence Response from Suraksha AI Agent."
-        
-        # AI Layer calls Repository Layer to update state/history
-        # self.chat_repo.update(...)
+        response_text = rag_response.get("answer", "I couldn't find an answer to your query.")
         
         return {
             "response": response_text,
             "session_id": session_id,
             "agent_metadata": {
-                "engine": "LangGraph Orchestrator",
-                "tokens_used": 150
+                "engine": "Catalyst QuickML RAG",
+                "source_documents": rag_response.get("source_documents", [])
             }
         }
