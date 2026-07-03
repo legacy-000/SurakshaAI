@@ -1,0 +1,5 @@
+CaseMasterID,Title,Description,EventDate,EventType,Location,CreatedBy
+1,FIR Registered,FIR registered at MG Road Police Station,2026-01-15 10:30:00,Registration,MG Road Police Station,101
+1,Investigation Started,Case assigned to Investigating Officer,2026-01-15 14:00:00,Investigation,MG Road Police Station,101
+1,Arrest Made,Accused John Doe arrested,2026-01-20 09:00:00,Arrest,Jayanagar,101
+2,FIR Registered,Assault case registered at Koramangala,2026-02-20 14:00:00,Registration,Koramangala Police Station,102

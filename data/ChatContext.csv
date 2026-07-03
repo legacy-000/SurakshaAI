@@ -1,0 +1,3 @@
+SessionID,UserID,Message,Response,Timestamp
+SESS001,USER001,Show me all theft cases in Bangalore,Found 15 theft cases registered in Bangalore.,2026-07-01 10:30:00
+SESS001,USER001,Which areas have highest crime?,MG Road and Koramangala have highest reported incidents.,2026-07-01 10:31:00

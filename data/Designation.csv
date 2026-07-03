@@ -1,0 +1,6 @@
+DesignationID,DesignationName,Active,SortOrder
+1,Station House Officer (SHO),1,1
+2,Investigating Officer,1,2
+3,Circle Inspector,1,3
+4,Sub-Inspector,1,4
+5,Assistant Sub-Inspector,1,5

@@ -1,0 +1,4 @@
+ComplainantID,CaseMasterID,ComplainantName,AgeYear,OccupationID,ReligionID,CasteID,GenderID
+1,1,Ravi Kumar,32,1,1,1,1
+2,1,Sita Sharma,28,2,2,2,2
+3,2,Mohammed Ali,45,3,3,3,1

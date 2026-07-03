@@ -6,21 +6,10 @@
   },
   "stack": "python",
   "type": "serverless",
-  "functions": [
-    {
-      "name": "suraksha-api",
-      "entry": "backend/main.py",
-      "runtime": "python312",
-      "memory": 512,
-      "timeout": 30,
-      "type": "http",
-      "env": {
-        "DB_TYPE": "catalyst_datastore",
-        "CACHE_TYPE": "catalyst_cache",
-        "AI_PROVIDER": "catalyst_quickml"
-      }
-    }
-  ],
+  "functions": {
+    "targets": ["suraksha-api"],
+    "source": "functions"
+  },
   "client": {
     "name": "suraksha-frontend",
     "source": "frontend/",
@@ -31,9 +20,16 @@
   },
   "datastore": {
     "entities": [
-      "User", "Case", "Accused", "Victim", "Officer",
+      "CaseMaster", "ComplainantDetails", "ActSectionAssociation",
+      "Victim", "Accused", "ArrestSurrender", "ChargesheetDetails",
+      "Inv_OccuranceTime", "inv_arrestsurrenderaccused",
+      "Act", "Section", "CrimeHeadActSection", "CrimeHead", "CrimeSubHead",
+      "CaseCategory", "GravityOffence", "CaseStatusMaster",
+      "CasteMaster", "ReligionMaster", "OccupationMaster",
+      "Court", "District", "State",
+      "Unit", "UnitType", "Rank", "Designation", "Employee",
       "CrimePattern", "Alert", "Prediction", "ChatContext",
-      "Investigation", "BehaviorProfile", "TimelineEvent"
+      "BehaviorProfile", "TimelineEvent"
     ],
     "indexes": {
       "spatial": true,
@@ -68,7 +64,7 @@
     "services": ["ocr", "object_detection", "barcode_scanner"]
   },
   "stratus": {
-    "buckets": ["evidence_files", "report_pdfs", "case_documents"]
+    "buckets": ["csv_imports", "evidence_files", "report_pdfs", "case_documents"]
   },
   "cron": [
     {

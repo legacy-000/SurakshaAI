@@ -1,0 +1,5 @@
+UnitID,UnitName,TypeID,ParentUnit,NationalityID,StateID,DistrictID,Active
+1001,MG Road Police Station,1,,1,1,1,1
+1002,Indiranagar Police Station,1,,1,1,1,1
+1003,Koramangala Police Station,1,,1,1,1,1
+1004,Whitefield Police Station,1,,1,1,1,1

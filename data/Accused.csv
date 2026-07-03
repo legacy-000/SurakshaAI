@@ -1,0 +1,4 @@
+AccusedMasterID,CaseMasterID,AccusedName,AgeYear,GenderID,PersonID
+1,1,John Doe,35,1,A1
+2,1,Jane Smith,30,2,A2
+3,2,Rohit Verma,28,1,A1
