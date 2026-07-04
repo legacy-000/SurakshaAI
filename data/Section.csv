@@ -1,9 +1,21 @@
 ActCode,SectionCode,SectionDescription,Active
-IPC,302,Punishment for murder,1
+IPC,302,Murder,1
 IPC,307,Attempt to murder,1
-IPC,324,Voluntarily causing hurt by dangerous weapons,1
-IPC,379,Punishment for theft,1
-IPC,380,Theft in dwelling house,1
-IPC,420,Cheating and dishonestly inducing delivery of property,1
-NDPS,20,Punishment for cultivation of cannabis plant,1
-NDPS,21,Punishment for manufacture possession of psychotropic substances,1
+IPC,324,Voluntary hurt by weapon,1
+IPC,326,Grievous hurt by acid/weapon,1
+IPC,354,Assault on woman,1
+IPC,376,Rape,1
+IPC,379,Theft,1
+IPC,380,Theft in dwelling,1
+IPC,392,Robbery,1
+IPC,394,Robbery with hurt,1
+IPC,397,Dacoity with firearm,1
+IPC,420,Cheating,1
+IPC,457,Lurking house-trespass,1
+IPC,498A,Cruelty by husband,1
+NDPS,20,Cultivation of cannabis,1
+NDPS,21,Possession of psychotropic,1
+IT_Act,66,Computer-related offences,1
+IT_Act,67,Publishing obscene material,1
+CrPC,144,Unlawful assembly order,1
+KA_Police,107,Public nuisance,1

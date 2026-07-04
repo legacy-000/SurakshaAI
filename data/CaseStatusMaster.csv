@@ -4,3 +4,4 @@ CaseStatusID,CaseStatusName
 3,Closed
 4,Pending Trial
 5,Transferred
+6,Awaiting Forensic

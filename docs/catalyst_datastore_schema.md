@@ -286,12 +286,31 @@
 ## SUPPLEMENTAL TABLES (SurakshaAI-specific, not in ER Diagram)
 
 These are optional AI/analytics tables for the SurakshaAI platform features:
-- CrimePattern — AI crime pattern analysis
-- Alert — System-generated alerts
-- Prediction — AI crime predictions
-- ChatContext — AI chat conversation storage
-- BehaviorProfile — AI behavioral profiling
-- TimelineEvent — Case timeline events visualization
+
+### 29. CrimePattern
+*AI crime pattern analysis — stores identified crime patterns for hotspots, temporal analysis, and MO clustering.*
+| Column | Type | Key | Max Len |
+|--------|------|-----|---------|
+| ROWID | — | PK | — |
+| pattern_name | Var Char | — | 100 |
+| description | Text | — | — |
+| crime_type | Var Char | — | 50 |
+| hotspot_radius_meters | Decimal | — | — |
+| temporal_signature | Var Char | — | 100 |
+| modus_operandi_tags | Var Char | — | 255 |
+| Created_Time | Date Time | — | — |
+| Modified_Time | Date Time | — | — |
+
+### 30. Alert
+*System-generated alerts for crime trends, anomalies, and notifications.*
+### 31. Prediction
+*AI crime predictions for forecasting and risk assessment.*
+### 32. ChatContext
+*AI chat conversation storage for the NL2SQL assistant.*
+### 33. BehaviorProfile
+*AI behavioral profiling for suspect/victim analysis.*
+### 34. TimelineEvent
+*Case timeline events for visualization.*
 
 ---
 
@@ -333,4 +352,12 @@ catalyst ds:import ./data/ArrestSurrender.csv --table ArrestSurrender
 catalyst ds:import ./data/ChargesheetDetails.csv --table ChargesheetDetails
 catalyst ds:import ./data/Inv_OccuranceTime.csv --table Inv_OccuranceTime
 catalyst ds:import ./data/inv_arrestsurrenderaccused.csv --table inv_arrestsurrenderaccused
+
+# Phase 5 — Supplemental AI Tables
+catalyst ds:import ./data/CrimePattern.csv --table CrimePattern
+catalyst ds:import ./data/Alert.csv --table Alert
+catalyst ds:import ./data/Prediction.csv --table Prediction
+catalyst ds:import ./data/ChatContext.csv --table ChatContext
+catalyst ds:import ./data/BehaviorProfile.csv --table BehaviorProfile
+catalyst ds:import ./data/TimelineEvent.csv --table TimelineEvent
 ```

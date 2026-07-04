@@ -1,5 +1,167 @@
 CaseMasterID,Title,Description,EventDate,EventType,Location,CreatedBy
-1,FIR Registered,FIR registered at MG Road Police Station,2026-01-15 10:30:00,Registration,MG Road Police Station,101
-1,Investigation Started,Case assigned to Investigating Officer,2026-01-15 14:00:00,Investigation,MG Road Police Station,101
-1,Arrest Made,Accused John Doe arrested,2026-01-20 09:00:00,Arrest,Jayanagar,101
-2,FIR Registered,Assault case registered at Koramangala,2026-02-20 14:00:00,Registration,Koramangala Police Station,102
+1,FIR Registered,FIR registered at Rajajinagar PS,2026-02-05 09:43:00,Registration,Rajajinagar,112
+1,Investigation Started,Case assigned to IO,2026-02-05 11:43:00,Investigation,Rajajinagar,112
+2,FIR Registered,FIR registered at Yeshwanthpur PS,2026-05-28 11:45:00,Registration,Yeshwanthpur,112
+2,Investigation Started,Case assigned to IO,2026-05-28 13:45:00,Investigation,Yeshwanthpur,112
+2,Scene Inspection,Police team visited crime scene,2026-06-03 11:45:00,Field Visit,Yeshwanthpur,112
+2,Witness Statement,Witness statement recorded,2026-05-31 11:45:00,Investigation,Yeshwanthpur,112
+2,Forensic Report,Forensic analysis report received,2026-06-04 11:45:00,Forensic,Yeshwanthpur,112
+3,FIR Registered,FIR registered at Banashankari PS,2026-02-24 18:31:00,Registration,Banashankari,111
+3,Investigation Started,Case assigned to IO,2026-02-24 20:31:00,Investigation,Banashankari,111
+3,Witness Statement,Witness statement recorded,2026-03-07 18:31:00,Investigation,Banashankari,111
+4,FIR Registered,FIR registered at Banashankari PS,2026-01-01 12:32:00,Registration,Banashankari,111
+4,Investigation Started,Case assigned to IO,2026-01-01 14:32:00,Investigation,Banashankari,111
+4,Scene Inspection,Police team visited crime scene,2026-01-05 12:32:00,Field Visit,Banashankari,111
+5,FIR Registered,FIR registered at Yeshwanthpur PS,2026-03-09 16:55:00,Registration,Yeshwanthpur,112
+5,Investigation Started,Case assigned to IO,2026-03-09 18:55:00,Investigation,Yeshwanthpur,112
+5,Scene Inspection,Police team visited crime scene,2026-03-15 16:55:00,Field Visit,Yeshwanthpur,112
+6,FIR Registered,FIR registered at Electronic City PS,2026-01-25 18:27:00,Registration,Electronic City,106
+6,Investigation Started,Case assigned to IO,2026-01-25 20:27:00,Investigation,Electronic City,106
+6,Forensic Report,Forensic analysis report received,2026-02-01 18:27:00,Forensic,Electronic City,106
+7,FIR Registered,FIR registered at Marathahalli PS,2026-02-09 11:18:00,Registration,Marathahalli,109
+7,Investigation Started,Case assigned to IO,2026-02-09 13:18:00,Investigation,Marathahalli,109
+7,Scene Inspection,Police team visited crime scene,2026-02-12 11:18:00,Field Visit,Marathahalli,109
+7,Witness Statement,Witness statement recorded,2026-02-23 11:18:00,Investigation,Marathahalli,109
+7,Forensic Report,Forensic analysis report received,2026-02-20 11:18:00,Forensic,Marathahalli,109
+8,FIR Registered,FIR registered at Marathahalli PS,2026-01-19 08:29:00,Registration,Marathahalli,109
+8,Investigation Started,Case assigned to IO,2026-01-19 10:29:00,Investigation,Marathahalli,109
+8,Scene Inspection,Police team visited crime scene,2026-01-22 08:29:00,Field Visit,Marathahalli,109
+9,FIR Registered,FIR registered at Jayanagar PS,2026-05-24 08:07:00,Registration,Jayanagar,111
+9,Investigation Started,Case assigned to IO,2026-05-24 10:07:00,Investigation,Jayanagar,111
+10,FIR Registered,FIR registered at MG Road PS,2026-03-05 12:10:00,Registration,MG Road,103
+10,Investigation Started,Case assigned to IO,2026-03-05 14:10:00,Investigation,MG Road,103
+10,Scene Inspection,Police team visited crime scene,2026-03-11 12:10:00,Field Visit,MG Road,103
+10,Witness Statement,Witness statement recorded,2026-03-16 12:10:00,Investigation,MG Road,103
+11,FIR Registered,FIR registered at Yeshwanthpur PS,2026-06-09 13:42:00,Registration,Yeshwanthpur,112
+11,Investigation Started,Case assigned to IO,2026-06-09 15:42:00,Investigation,Yeshwanthpur,112
+11,Forensic Report,Forensic analysis report received,2026-06-19 13:42:00,Forensic,Yeshwanthpur,112
+12,FIR Registered,FIR registered at Indiranagar PS,2026-04-27 14:56:00,Registration,Indiranagar,104
+12,Investigation Started,Case assigned to IO,2026-04-27 16:56:00,Investigation,Indiranagar,104
+12,Witness Statement,Witness statement recorded,2026-05-08 14:56:00,Investigation,Indiranagar,104
+13,FIR Registered,FIR registered at Whitefield PS,2026-03-27 13:57:00,Registration,Whitefield,109
+13,Investigation Started,Case assigned to IO,2026-03-27 15:57:00,Investigation,Whitefield,109
+13,Scene Inspection,Police team visited crime scene,2026-04-01 13:57:00,Field Visit,Whitefield,109
+14,FIR Registered,FIR registered at Jayanagar PS,2026-02-12 15:58:00,Registration,Jayanagar,111
+14,Investigation Started,Case assigned to IO,2026-02-12 17:58:00,Investigation,Jayanagar,111
+14,Scene Inspection,Police team visited crime scene,2026-02-16 15:58:00,Field Visit,Jayanagar,111
+15,FIR Registered,FIR registered at Whitefield PS,2026-02-11 12:06:00,Registration,Whitefield,108
+15,Investigation Started,Case assigned to IO,2026-02-11 14:06:00,Investigation,Whitefield,108
+15,Scene Inspection,Police team visited crime scene,2026-02-15 12:06:00,Field Visit,Whitefield,108
+15,Witness Statement,Witness statement recorded,2026-02-21 12:06:00,Investigation,Whitefield,108
+16,FIR Registered,FIR registered at Rajajinagar PS,2026-05-05 11:22:00,Registration,Rajajinagar,112
+16,Investigation Started,Case assigned to IO,2026-05-05 13:22:00,Investigation,Rajajinagar,112
+16,Forensic Report,Forensic analysis report received,2026-05-19 11:22:00,Forensic,Rajajinagar,112
+17,FIR Registered,FIR registered at Jayanagar PS,2026-03-22 09:47:00,Registration,Jayanagar,110
+17,Investigation Started,Case assigned to IO,2026-03-22 11:47:00,Investigation,Jayanagar,110
+17,Witness Statement,Witness statement recorded,2026-03-31 09:47:00,Investigation,Jayanagar,110
+18,FIR Registered,FIR registered at Banashankari PS,2026-04-24 12:55:00,Registration,Banashankari,111
+18,Investigation Started,Case assigned to IO,2026-04-24 14:55:00,Investigation,Banashankari,111
+18,Scene Inspection,Police team visited crime scene,2026-04-30 12:55:00,Field Visit,Banashankari,111
+18,Witness Statement,Witness statement recorded,2026-05-01 12:55:00,Investigation,Banashankari,111
+19,FIR Registered,FIR registered at Rajajinagar PS,2026-05-20 11:41:00,Registration,Rajajinagar,112
+19,Investigation Started,Case assigned to IO,2026-05-20 13:41:00,Investigation,Rajajinagar,112
+19,Scene Inspection,Police team visited crime scene,2026-05-22 11:41:00,Field Visit,Rajajinagar,112
+20,FIR Registered,FIR registered at BTM Layout PS,2026-02-14 15:33:00,Registration,BTM Layout,110
+20,Investigation Started,Case assigned to IO,2026-02-14 17:33:00,Investigation,BTM Layout,110
+21,FIR Registered,FIR registered at Whitefield PS,2026-01-14 11:17:00,Registration,Whitefield,109
+21,Investigation Started,Case assigned to IO,2026-01-14 13:17:00,Investigation,Whitefield,109
+21,Scene Inspection,Police team visited crime scene,2026-01-21 11:17:00,Field Visit,Whitefield,109
+21,Forensic Report,Forensic analysis report received,2026-02-02 11:17:00,Forensic,Whitefield,109
+22,FIR Registered,FIR registered at Yeshwanthpur PS,2026-02-08 15:34:00,Registration,Yeshwanthpur,112
+22,Investigation Started,Case assigned to IO,2026-02-08 17:34:00,Investigation,Yeshwanthpur,112
+22,Forensic Report,Forensic analysis report received,2026-02-20 15:34:00,Forensic,Yeshwanthpur,112
+23,FIR Registered,FIR registered at Rajajinagar PS,2026-06-11 18:58:00,Registration,Rajajinagar,112
+23,Investigation Started,Case assigned to IO,2026-06-11 20:58:00,Investigation,Rajajinagar,112
+23,Witness Statement,Witness statement recorded,2026-06-21 18:58:00,Investigation,Rajajinagar,112
+24,FIR Registered,FIR registered at BTM Layout PS,2026-02-20 14:54:00,Registration,BTM Layout,111
+24,Investigation Started,Case assigned to IO,2026-02-20 16:54:00,Investigation,BTM Layout,111
+25,FIR Registered,FIR registered at Hebbal PS,2026-02-03 09:58:00,Registration,Hebbal,105
+25,Investigation Started,Case assigned to IO,2026-02-03 11:58:00,Investigation,Hebbal,105
+25,Scene Inspection,Police team visited crime scene,2026-02-10 09:58:00,Field Visit,Hebbal,105
+25,Forensic Report,Forensic analysis report received,2026-02-22 09:58:00,Forensic,Hebbal,105
+26,FIR Registered,FIR registered at Marathahalli PS,2026-06-22 18:16:00,Registration,Marathahalli,109
+26,Investigation Started,Case assigned to IO,2026-06-22 20:16:00,Investigation,Marathahalli,109
+26,Forensic Report,Forensic analysis report received,2026-07-10 18:16:00,Forensic,Marathahalli,109
+27,FIR Registered,FIR registered at Malleshwaram PS,2026-06-25 13:34:00,Registration,Malleshwaram,112
+27,Investigation Started,Case assigned to IO,2026-06-25 15:34:00,Investigation,Malleshwaram,112
+28,FIR Registered,FIR registered at Koramangala PS,2026-03-24 08:11:00,Registration,Koramangala,115
+28,Investigation Started,Case assigned to IO,2026-03-24 10:11:00,Investigation,Koramangala,115
+28,Scene Inspection,Police team visited crime scene,2026-03-28 08:11:00,Field Visit,Koramangala,115
+28,Witness Statement,Witness statement recorded,2026-03-28 08:11:00,Investigation,Koramangala,115
+28,Forensic Report,Forensic analysis report received,2026-04-02 08:11:00,Forensic,Koramangala,115
+29,FIR Registered,FIR registered at Koramangala PS,2026-03-25 14:38:00,Registration,Koramangala,115
+29,Investigation Started,Case assigned to IO,2026-03-25 16:38:00,Investigation,Koramangala,115
+29,Scene Inspection,Police team visited crime scene,2026-03-26 14:38:00,Field Visit,Koramangala,115
+29,Forensic Report,Forensic analysis report received,2026-04-03 14:38:00,Forensic,Koramangala,115
+30,FIR Registered,FIR registered at Yeshwanthpur PS,2026-04-16 13:55:00,Registration,Yeshwanthpur,112
+30,Investigation Started,Case assigned to IO,2026-04-16 15:55:00,Investigation,Yeshwanthpur,112
+31,FIR Registered,FIR registered at MG Road PS,2026-03-11 12:58:00,Registration,MG Road,101
+31,Investigation Started,Case assigned to IO,2026-03-11 14:58:00,Investigation,MG Road,101
+31,Scene Inspection,Police team visited crime scene,2026-03-15 12:58:00,Field Visit,MG Road,101
+31,Witness Statement,Witness statement recorded,2026-03-24 12:58:00,Investigation,MG Road,101
+32,FIR Registered,FIR registered at Electronic City PS,2026-06-03 08:00:00,Registration,Electronic City,107
+32,Investigation Started,Case assigned to IO,2026-06-03 10:00:00,Investigation,Electronic City,107
+32,Scene Inspection,Police team visited crime scene,2026-06-04 08:00:00,Field Visit,Electronic City,107
+32,Witness Statement,Witness statement recorded,2026-06-15 08:00:00,Investigation,Electronic City,107
+33,FIR Registered,FIR registered at Koramangala PS,2026-02-13 09:32:00,Registration,Koramangala,107
+33,Investigation Started,Case assigned to IO,2026-02-13 11:32:00,Investigation,Koramangala,107
+33,Scene Inspection,Police team visited crime scene,2026-02-16 09:32:00,Field Visit,Koramangala,107
+33,Forensic Report,Forensic analysis report received,2026-02-27 09:32:00,Forensic,Koramangala,107
+34,FIR Registered,FIR registered at MG Road PS,2026-01-24 17:38:00,Registration,MG Road,103
+34,Investigation Started,Case assigned to IO,2026-01-24 19:38:00,Investigation,MG Road,103
+34,Witness Statement,Witness statement recorded,2026-02-05 17:38:00,Investigation,MG Road,103
+35,FIR Registered,FIR registered at Hebbal PS,2026-06-02 09:19:00,Registration,Hebbal,104
+35,Investigation Started,Case assigned to IO,2026-06-02 11:19:00,Investigation,Hebbal,104
+35,Forensic Report,Forensic analysis report received,2026-06-11 09:19:00,Forensic,Hebbal,104
+36,FIR Registered,FIR registered at Yelahanka PS,2026-04-04 18:46:00,Registration,Yelahanka,105
+36,Investigation Started,Case assigned to IO,2026-04-04 20:46:00,Investigation,Yelahanka,105
+36,Scene Inspection,Police team visited crime scene,2026-04-05 18:46:00,Field Visit,Yelahanka,105
+36,Witness Statement,Witness statement recorded,2026-04-09 18:46:00,Investigation,Yelahanka,105
+36,Forensic Report,Forensic analysis report received,2026-04-25 18:46:00,Forensic,Yelahanka,105
+37,FIR Registered,FIR registered at Yeshwanthpur PS,2026-01-07 14:03:00,Registration,Yeshwanthpur,112
+37,Investigation Started,Case assigned to IO,2026-01-07 16:03:00,Investigation,Yeshwanthpur,112
+37,Scene Inspection,Police team visited crime scene,2026-01-08 14:03:00,Field Visit,Yeshwanthpur,112
+38,FIR Registered,FIR registered at Yeshwanthpur PS,2026-03-16 14:00:00,Registration,Yeshwanthpur,112
+38,Investigation Started,Case assigned to IO,2026-03-16 16:00:00,Investigation,Yeshwanthpur,112
+38,Forensic Report,Forensic analysis report received,2026-03-23 14:00:00,Forensic,Yeshwanthpur,112
+39,FIR Registered,FIR registered at Malleshwaram PS,2026-05-03 18:11:00,Registration,Malleshwaram,112
+39,Investigation Started,Case assigned to IO,2026-05-03 20:11:00,Investigation,Malleshwaram,112
+39,Scene Inspection,Police team visited crime scene,2026-05-07 18:11:00,Field Visit,Malleshwaram,112
+39,Witness Statement,Witness statement recorded,2026-05-14 18:11:00,Investigation,Malleshwaram,112
+39,Forensic Report,Forensic analysis report received,2026-05-11 18:11:00,Forensic,Malleshwaram,112
+40,FIR Registered,FIR registered at Jalahalli PS,2026-03-17 13:06:00,Registration,Jalahalli,115
+40,Investigation Started,Case assigned to IO,2026-03-17 15:06:00,Investigation,Jalahalli,115
+40,Scene Inspection,Police team visited crime scene,2026-03-21 13:06:00,Field Visit,Jalahalli,115
+40,Forensic Report,Forensic analysis report received,2026-04-05 13:06:00,Forensic,Jalahalli,115
+41,FIR Registered,FIR registered at Koramangala PS,2026-06-16 12:15:00,Registration,Koramangala,107
+41,Investigation Started,Case assigned to IO,2026-06-16 14:15:00,Investigation,Koramangala,107
+41,Witness Statement,Witness statement recorded,2026-06-24 12:15:00,Investigation,Koramangala,107
+42,FIR Registered,FIR registered at Koramangala PS,2026-05-22 17:23:00,Registration,Koramangala,107
+42,Investigation Started,Case assigned to IO,2026-05-22 19:23:00,Investigation,Koramangala,107
+42,Scene Inspection,Police team visited crime scene,2026-05-28 17:23:00,Field Visit,Koramangala,107
+42,Witness Statement,Witness statement recorded,2026-06-02 17:23:00,Investigation,Koramangala,107
+43,FIR Registered,FIR registered at Yelahanka PS,2026-06-10 12:39:00,Registration,Yelahanka,104
+43,Investigation Started,Case assigned to IO,2026-06-10 14:39:00,Investigation,Yelahanka,104
+43,Scene Inspection,Police team visited crime scene,2026-06-11 12:39:00,Field Visit,Yelahanka,104
+43,Forensic Report,Forensic analysis report received,2026-06-23 12:39:00,Forensic,Yelahanka,104
+44,FIR Registered,FIR registered at Electronic City PS,2026-03-23 13:25:00,Registration,Electronic City,107
+44,Investigation Started,Case assigned to IO,2026-03-23 15:25:00,Investigation,Electronic City,107
+44,Scene Inspection,Police team visited crime scene,2026-03-24 13:25:00,Field Visit,Electronic City,107
+45,FIR Registered,FIR registered at Whitefield PS,2026-05-07 17:56:00,Registration,Whitefield,109
+45,Investigation Started,Case assigned to IO,2026-05-07 19:56:00,Investigation,Whitefield,109
+45,Forensic Report,Forensic analysis report received,2026-05-22 17:56:00,Forensic,Whitefield,109
+46,FIR Registered,FIR registered at Marathahalli PS,2026-05-02 16:29:00,Registration,Marathahalli,109
+46,Investigation Started,Case assigned to IO,2026-05-02 18:29:00,Investigation,Marathahalli,109
+46,Scene Inspection,Police team visited crime scene,2026-05-07 16:29:00,Field Visit,Marathahalli,109
+46,Forensic Report,Forensic analysis report received,2026-05-09 16:29:00,Forensic,Marathahalli,109
+47,FIR Registered,FIR registered at Electronic City PS,2026-04-16 16:49:00,Registration,Electronic City,106
+47,Investigation Started,Case assigned to IO,2026-04-16 18:49:00,Investigation,Electronic City,106
+47,Witness Statement,Witness statement recorded,2026-04-24 16:49:00,Investigation,Electronic City,106
+48,FIR Registered,FIR registered at Banashankari PS,2026-03-30 15:41:00,Registration,Banashankari,110
+48,Investigation Started,Case assigned to IO,2026-03-30 17:41:00,Investigation,Banashankari,110
+49,FIR Registered,FIR registered at Rajajinagar PS,2026-01-23 18:36:00,Registration,Rajajinagar,112
+49,Investigation Started,Case assigned to IO,2026-01-23 20:36:00,Investigation,Rajajinagar,112
+49,Witness Statement,Witness statement recorded,2026-01-31 18:36:00,Investigation,Rajajinagar,112
+50,FIR Registered,FIR registered at BTM Layout PS,2026-01-23 14:42:00,Registration,BTM Layout,111
+50,Investigation Started,Case assigned to IO,2026-01-23 16:42:00,Investigation,BTM Layout,111
+50,Scene Inspection,Police team visited crime scene,2026-01-29 14:42:00,Field Visit,BTM Layout,111

@@ -17,7 +17,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://suraksha-frontend-pbdnbciy.onslate.in")
 origins = [origin.strip() for origin in allowed_origins_raw.split(",")]
 
 app.add_middleware(

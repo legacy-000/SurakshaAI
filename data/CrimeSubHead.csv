@@ -5,5 +5,9 @@ CrimeSubHeadID,CrimeHeadID,CrimeHeadName,SeqID
 4,2,Robbery,1
 5,2,Burglary,2
 6,2,Theft,3
-7,3,Rape,1
-8,3,Dowry Death,2
+7,2,Vehicle Theft,4
+8,3,Rape,1
+9,3,Dowry Case,2
+10,4,Fraud,1
+11,5,Cyber Fraud,1
+12,6,Drug Possession,1
