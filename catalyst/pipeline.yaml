@@ -1,0 +1,20 @@
+pipeline:
+  name: suraksha-ai-pipeline
+  stages:
+    - name: test
+      commands:
+        - pip install -r requirements.txt
+        - pytest tests/ -v
+
+    - name: deploy-functions
+      commands:
+        - catalyst deploy functions
+
+    - name: deploy-client
+      commands:
+        - cd client && npm install && npm run build
+        - catalyst deploy client
+
+  triggers:
+    - branch: main
+    - branch: develop

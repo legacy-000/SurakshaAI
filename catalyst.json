@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "targets": [
+      "suraksha_ai",
+      "chatbot"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "client": {
+    "source": "suraksha-dashboard",
+    "plugin": "zcatalyst-cli-plugin-react"
+  },
+  "apig": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "deployment": {
+    "name": "chatbot",
+    "stack": "node18",
+    "type": "advancedio",
+    "env_variables": {
+      "DB_TYPE": "catalyst_datastore",
+      "AI_PROVIDER": "catalyst_quickml",
+      "CACHE_TYPE": "catalyst_cache",
+      "LOG_LEVEL": "info"
+    }
+  },
+  "execution": {
+    "main": "index.js"
+  }
+}
