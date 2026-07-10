@@ -1,0 +1,60 @@
+[
+  {
+    "name": "Login Redirect",
+    "source_endpoint": "/app/index.html",
+    "target_endpoint": "/app/index.html",
+    "target": "client",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "system": true
+  },
+  {
+    "name": "suraksha-dashboard - Web Client Hosting",
+    "source_endpoint": "/chatbot",
+    "target_endpoint": "/server/chatbot/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "55029000000042002"
+  },
+  {
+    "name": "chatbot",
+    "source_endpoint": "/server/chatbot/{path1:(.*)}",
+    "target_endpoint": "/server/chatbot/{path1}",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "55029000000042002"
+  },
+  {
+    "name": "api_root_route",
+    "source_endpoint": "/api/",
+    "target_endpoint": "/server/suraksha_ai/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
+  },
+  {
+    "name": "api_wildcard_route",
+    "source_endpoint": "/api/{path1:(.*)}",
+    "target_endpoint": "/server/suraksha_ai/{path1}",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
+  }
+]

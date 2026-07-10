@@ -1,6 +1,7 @@
 {
   "defaults": {
-    "project": 1
+    "project": 1,
+    "env": 1
   },
   "actives": {
     "project": 1,
@@ -22,6 +23,12 @@
           "id": "60076341598",
           "name": "Development",
           "type": 3
+        },
+        {
+          "idx": 2,
+          "id": "50043675274",
+          "name": "Production",
+          "type": 1
         }
       ]
     }

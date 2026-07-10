@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "name": "daily_forecast_generation",
+      "schedule": "0 6 * * *",
+      "function": "jobs.scheduled_forecast.run",
+      "description": "Generate daily crime forecasts for all districts"
+    },
+    {
+      "name": "daily_alert_evaluation",
+      "schedule": "0 7 * * *",
+      "function": "jobs.scheduled_alerts.run",
+      "description": "Evaluate early warning rules and generate alerts"
+    }
+  ]
+}
