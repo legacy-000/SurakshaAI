@@ -12,6 +12,7 @@
     "plugin": "zcatalyst-cli-plugin-react"
   },
   "apig": {
+    "rules": "catalyst-user-rules.json",
     "enabled": true
   }
 }

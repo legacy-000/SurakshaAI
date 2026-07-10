@@ -1,5 +1,7 @@
 """Suraksha AI - Main Catalyst Serverless Function Entry Point."""
 
+import logging
+
 from functions.auth.auth_handler import AuthHandler
 from functions.chat.chat_handler import ChatHandler
 from functions.chat.voice_handler import VoiceHandler
@@ -29,6 +31,7 @@ from functions.cache.cache_manager import CacheManager
 from functions.ai.case_summarizer import CaseSummarizer
 from functions.health.health_handler import HealthHandler
 from functions.auth.rbac_middleware import RBACMiddleware
+from functions.db.datastore_client import DatastoreClient
 
 from models.dto import (
     LoginRequestDTO, QueryRequestDTO, UserContextDTO,
@@ -37,11 +40,31 @@ from models.dto import (
     ForecastRequestDTO, FeedbackDTO
 )
 
+logger = logging.getLogger(__name__)
+
+
+_init_error = None
+
+
+def _init_catalyst_app():
+    global _init_error
+    try:
+        import zcatalyst_sdk
+        app = zcatalyst_sdk.initialize()
+        logger.info("Catalyst SDK initialized successfully")
+        return app
+    except Exception as e:
+        _init_error = f"{type(e).__name__}: {str(e)}"
+        logger.error("Catalyst SDK not available: %s", e)
+        return None
+
 
 class SurakshaAIHandler:
-    def __init__(self):
+    def __init__(self, catalyst_app=None):
+        self._catalyst_app = catalyst_app or _init_catalyst_app()
+
         self.auth = AuthHandler()
-        self.chat = ChatHandler()
+        self.chat = ChatHandler(self._catalyst_app)
         self.voice = VoiceHandler()
         self.pdf = PDFExporter()
         self.trends = TrendAnalyzer()
@@ -69,6 +92,10 @@ class SurakshaAIHandler:
         self.summarizer = CaseSummarizer()
         self.health = HealthHandler()
         self.rbac = RBACMiddleware()
+
+    @property
+    def is_live(self):
+        return self._catalyst_app is not None
 
 
 handler = SurakshaAIHandler()

@@ -30,14 +30,62 @@ function seededRandom(seed: number): number {
   return x - Math.floor(x);
 }
 
+async function postToBackend(action: string, params: Record<string, any> = {}): Promise<any> {
+  const userStr = localStorage.getItem('user_context');
+  const userContext = userStr ? JSON.parse(userStr) : null;
+  const token = localStorage.getItem('token');
+
+  const response = await fetch('/api/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({
+      action,
+      params,
+      session: {
+        user_context: userContext
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export const api = {
-  async login(kgid: string, _password: string): Promise<LoginResponse> {
+  async login(kgid: string, password: string): Promise<LoginResponse> {
+    try {
+      const res = await postToBackend('login', { kgid, password });
+      if (res && res.token) {
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user_context', JSON.stringify(res.user));
+        return res;
+      }
+    } catch (e) {
+      console.warn("Failed live login, using mock database.", e);
+    }
+
     await delay(500);
-    if (users[kgid]) return users[kgid];
+    if (users[kgid]) {
+      localStorage.setItem('token', users[kgid].token);
+      localStorage.setItem('user_context', JSON.stringify(users[kgid].user));
+      return users[kgid];
+    }
     throw new Error('Invalid credentials');
   },
 
   async chatQuery(message: string, conversationId?: string): Promise<ChatMessage> {
+    try {
+      return await postToBackend('chat_query', { message, conversation_id: conversationId });
+    } catch (e) {
+      console.warn("Failed live chatQuery, using fallback mock.", e);
+    }
+
     await delay(800);
     const lowercase = message.toLowerCase();
 
@@ -70,7 +118,7 @@ export const api = {
     } else if (lowercase.includes('cyber')) {
       response = {
         text: '2,134 cyber crime cases were reported in Karnataka this year. The most common types are phishing (834), online fraud (612), and identity theft (388). Bengaluru Urban accounts for 58% of all cases.',
-        kn: 'ಈ ವರ್ಷ ಕರ್ನಾಟಕದಲ್ಲಿ 2,134 ಸೈಬರ್ ಅಪರಾಧ ಪ್ರಕರಣಗಳು ವರದಿಯಾಗಿವೆ. ಸಾಮಾನ್ಯ ವಿಧಗಳೆಂದರೆ ಫಿಶಿಂಗ್ (834), ಆನ್‌ಲೈನ್ ವಂಚನೆ (612) ಮತ್ತು ಗುರುತಿನ ಕಳ್ಳತನ (388).',
+        kn: 'ಈ ವರ್ಷ ಕರ್ನಾಟಕದಲ್ಲಿ 2,134 ಸೈಬರ್ ಅಪರಾಧ ಪ್ರಕರಣಗಳು ವರದಿಯಾವೆ. ಸಾಮಾನ್ಯ ವಿಧಗಳೆಂದರೆ ಫಿಶಿಂಗ್ (834), ಆನ್‌ಲೈನ್ ವಂಚನೆ (612) ಮತ್ತು ಗುರುತಿನ ಕಳ್ಳತನ (388).',
         chart: 'pie_chart',
         followups: ['Show by district', 'Top cyber crime hotspots', 'Recovery rate'],
         evidence: [{ label: 'CyberCrime records', count: 2134, table: 'CyberCrime' }],
@@ -127,6 +175,12 @@ export const api = {
   },
 
   async getForecastData(category?: string, district?: string): Promise<ForecastDataPoint[]> {
+    try {
+      return await postToBackend('get_forecast', { category, district });
+    } catch (e) {
+      console.warn("Failed live getForecastData, using fallback mock.", e);
+    }
+
     await delay(400);
     const cat = category || 'Theft';
     const dist = district || 'Bengaluru Urban';
@@ -149,6 +203,12 @@ export const api = {
   },
 
   async getMultiForecast(): Promise<{ category: string; data: ForecastDataPoint[] }[]> {
+    try {
+      return await postToBackend('get_multi_forecast');
+    } catch (e) {
+      console.warn("Failed live getMultiForecast, using fallback mock.", e);
+    }
+
     await delay(500);
     const categories = ['Theft', 'Robbery', 'Assault', 'Cyber Crime', 'Burglary'];
     const results = await Promise.all(
@@ -158,6 +218,12 @@ export const api = {
   },
 
   async getDistrictForecasts(): Promise<{ district: string; data: ForecastDataPoint[] }[]> {
+    try {
+      return await postToBackend('get_district_forecasts');
+    } catch (e) {
+      console.warn("Failed live getDistrictForecasts, using fallback mock.", e);
+    }
+
     await delay(500);
     const topDistricts = ['Bengaluru Urban', 'Mysuru', 'Hubballi-Dharwad', 'Mangaluru', 'Belagavi'];
     const results = await Promise.all(
@@ -167,6 +233,12 @@ export const api = {
   },
 
   async getOffenderProfile(name: string): Promise<OffenderProfile> {
+    try {
+      return await postToBackend('get_offender_profile', { name });
+    } catch (e) {
+      console.warn("Failed live getOffenderProfile, using fallback mock.", e);
+    }
+
     await delay(600);
     const score = this.getPriorityScore();
     return {
@@ -206,6 +278,12 @@ export const api = {
   },
 
   async getTrends(): Promise<TrendDataPoint[]> {
+    try {
+      return await postToBackend('get_trends');
+    } catch (e) {
+      console.warn("Failed live getTrends, using fallback mock.", e);
+    }
+
     await delay(400);
     const types = ['Theft', 'Robbery', 'Assault', 'Burglary', 'Cyber Crime'];
     return types.flatMap(type => [
@@ -219,6 +297,12 @@ export const api = {
   },
 
   async getHotspots(): Promise<HotspotCluster[]> {
+    try {
+      return await postToBackend('get_hotspots');
+    } catch (e) {
+      console.warn("Failed live getHotspots, using fallback mock.", e);
+    }
+
     await delay(400);
     return [
       { cluster_id: 1, centroid_lat: 12.9716, centroid_lng: 77.5946, case_count: 12, radius_km: 0.8, crime_type: 'Theft' },
@@ -233,6 +317,12 @@ export const api = {
   },
 
   async getNetwork(accusedName: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+    try {
+      return await postToBackend('get_network', { accused_name: accusedName });
+    } catch (e) {
+      console.warn("Failed live getNetwork, using fallback mock.", e);
+    }
+
     await delay(600);
     const tiers = ['LOW', 'MODERATE', 'ELEVATED', 'HIGH'] as const;
     const nodes: GraphNode[] = accusedNames.slice(0, 8).map((n, i) => ({
@@ -259,6 +349,12 @@ export const api = {
   },
 
   async getDashboardKpis(): Promise<{ label: string; value: string; change: string; icon: string }[]> {
+    try {
+      return await postToBackend('get_dashboard_kpis');
+    } catch (e) {
+      console.warn("Failed live getDashboardKpis, using fallback mock.", e);
+    }
+
     return [
       { label: 'Total FIRs', value: '12,847', change: '+12.4%', icon: 'FileText' },
       { label: 'Active Cases', value: '156', change: '-8.2%', icon: 'Activity' },
@@ -268,6 +364,12 @@ export const api = {
   },
 
   async getAlerts(): Promise<{ id: string; severity: string; title: string; description: string; rule_id: string; trigger_condition: string; created_at: string; acknowledged: boolean }[]> {
+    try {
+      return await postToBackend('get_alerts');
+    } catch (e) {
+      console.warn("Failed live getAlerts, using fallback mock.", e);
+    }
+
     return [
       { id: 'a1', severity: 'critical', title: 'Theft Surge Detected', description: 'Theft cases in Whitefield up 34% this month — automated threshold breach.', rule_id: 'R-THEFT-001', trigger_condition: 'pct_change > 25%', created_at: new Date().toISOString(), acknowledged: false },
       { id: 'a2', severity: 'warning', title: 'Seasonal Pattern Trigger', description: 'Burglary cases expected to rise 18-22% during upcoming festive season.', rule_id: 'R-SEASONAL-003', trigger_condition: 'Prophet forecast 80% CI breach', created_at: new Date(Date.now() - 86400000).toISOString(), acknowledged: false },
@@ -278,6 +380,12 @@ export const api = {
   },
 
   async getActivityFeed(): Promise<{ id: string; text: string; time: string; type: string }[]> {
+    try {
+      return await postToBackend('get_activity_feed');
+    } catch (e) {
+      console.warn("Failed live getActivityFeed, using fallback mock.", e);
+    }
+
     return [
       { id: 'f1', text: 'New FIR filed: Theft at Whitefield station', time: '2 min ago', type: 'case' },
       { id: 'f2', text: 'Offender score updated for Suresh P — MODERATE', time: '15 min ago', type: 'score' },

@@ -14,10 +14,10 @@ from functions.auth.rbac_middleware import RBACMiddleware
 
 
 class ChatHandler:
-    def __init__(self):
+    def __init__(self, catalyst_app=None):
         self.conversation_manager = ConversationManager()
-        self.nl2sql = NL2SQLEngine()
-        self.executor = QueryExecutor()
+        self.nl2sql = NL2SQLEngine(catalyst_app)
+        self.executor = QueryExecutor(catalyst_app)
         self.answer_gen = AnswerGenerator()
         self.evidence_builder = EvidenceBuilder()
         self.viz_recommender = VizRecommender()
@@ -33,12 +33,47 @@ class ChatHandler:
 
         context = self.conversation_manager.get_context(conv_id)
 
-        sql_result = self.nl2sql.generate_sql(req.message, context=context)
-        if sql_result.get("error"):
+        # Intercept greetings and identity queries
+        msg_lower = req.message.strip().lower().rstrip('?.!')
+        greetings = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "namaste"}
+        identity_queries = {"what is your name", "who are you", "what are you", "tell me about yourself", "your name", "who made you"}
+
+        if msg_lower in greetings or any(g in msg_lower for g in {"hello ", "hi ", "hey "}):
+            answer = "Hello! I am Suraksha AI, your crime intelligence assistant for Karnataka. How can I help you today?"
+            answer_kn = "ನಮಸ್ಕಾರ! ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕದ ಅಪರಾಧ ಗುಪ್ತಚರ ಸಹಾಯಕ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
             return ConversationMessageDTO(
                 message_id=str(uuid.uuid4()), conversation_id=conv_id,
                 message_type="ai_response",
-                content_text="I could not generate a query for that request. Please try rephrasing.",
+                content_text=answer,
+                content_kannada=answer_kn,
+                confidence_class="high", grounding_status="verified",
+                suggested_followups=["Show theft cases in Bangalore", "Show hotspot areas", "Predict future trends"],
+                created_at=datetime.now().isoformat()
+            )
+
+        if any(q in msg_lower for q in identity_queries):
+            answer = "I am Suraksha AI, an AI-powered Crime Intelligence and Analytics platform built for the Karnataka State Police to assist in crime tracking, forecasting, and offender profiling."
+            answer_kn = "ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕ ರಾಜ್ಯ ಪೊಲೀಸ್‌ಗಾಗಿ ಅಪರಾಧ ಪತ್ತೆ ಹಚ್ಚುವಿಕೆ, ಮುನ್ಸೂಚನೆ ಮತ್ತು ಅಪರಾಧಿಗಳ ಪ್ರೊಫೈಲಿಂಗ್‌ನಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ನಿರ್ಮಿಸಲಾದ AI-ಆಧಾರಿತ ಅಪರಾಧ ಗುಪ್ತಚರ ಮತ್ತು ವಿಶ್ಲೇಷಣಾ ವೇದಿಕೆ."
+            return ConversationMessageDTO(
+                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+                message_type="ai_response",
+                content_text=answer,
+                content_kannada=answer_kn,
+                confidence_class="high", grounding_status="verified",
+                suggested_followups=["Show theft cases in Bangalore", "Show hotspot areas", "Predict future trends"],
+                created_at=datetime.now().isoformat()
+            )
+
+        sql_result = self.nl2sql.generate_sql(req.message, context=context)
+        if sql_result.get("error"):
+            err_msg = sql_result.get("message", "")
+            if sql_result.get("error") == "SQLGEN_001":
+                val = sql_result.get("validation", {})
+                err_msg = f"SQL Validation failed. Reasons: {val.get('reasons', [])}. Generated SQL: {sql_result.get('sql_text')}"
+            return ConversationMessageDTO(
+                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+                message_type="ai_response",
+                content_text=f"I could not generate a query for that request: {sql_result.get('error')} - {err_msg}",
                 confidence_class="low", grounding_status="unverified",
                 created_at=datetime.now().isoformat()
             )
@@ -48,7 +83,7 @@ class ChatHandler:
             return ConversationMessageDTO(
                 message_id=str(uuid.uuid4()), conversation_id=conv_id,
                 message_type="ai_response",
-                content_text=f"Query execution failed: {exec_result['error']}",
+                content_text=f"{exec_result.get('message', 'Query execution failed')} | Generated SQL: {sql_result.get('sql_text')}",
                 confidence_class="low", grounding_status="unverified",
                 created_at=datetime.now().isoformat()
             )
