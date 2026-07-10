@@ -1,0 +1,9 @@
+table_name,column_name,data_type,is_primary_key,is_foreign_key,references_table,references_column,description,pii_classification,is_queryable
+CaseMaster,CaseMasterID,INT,1,0,,,Primary key,none,1
+CaseMaster,CrimeNo,VARCHAR,0,0,,,Encoded FIR number,none,1
+CaseMaster,CrimeRegisteredDate,DATE,0,0,,,FIR registration date,none,1
+CaseMaster,BriefFacts,TEXT,0,0,,,Case narrative,none,1
+Accused,AccusedName,VARCHAR,0,0,,,Name of accused person,direct,1
+Accused,AgeYear,INT,0,0,,,Age of accused,quasi,1
+Victim,VictimName,VARCHAR,0,0,,,Name of victim,direct,1
+ComplainantDetails,ComplainantName,VARCHAR,0,0,,,Name of complainant,direct,1

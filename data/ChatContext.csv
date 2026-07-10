@@ -2,15 +2,6 @@ SessionID,UserID,Message,Response,Timestamp
 SESS001,USER001,Show theft cases in MG Road,Found 12 theft cases registered in MG Road area.,2026-07-01 10:30:00
 SESS001,USER001,Which areas have highest crime?,"MG Road (15 cases), Koramangala (12 cases), Indiranagar (10 cases).",2026-07-01 10:31:00
 SESS001,USER001,Show monthly trend,Jan:3 Feb:5 Mar:7 Apr:9 May:12 Jun:14 — rising trend.,2026-07-01 10:32:00
-SESS002,USER002,Whose accused name is John Doe?,John Doe is accused in Case #1 (Theft at MG Road). Repeat offender.,2026-07-02 14:00:00
-SESS002,USER002,Map of all burglary cases,"Found 6 burglary cases. Mapping to Indiranagar, Whitefield, Jayanagar.",2026-07-02 14:01:00
-SESS002,USER002,Pattern analysis for last 3 months,Peak crime time: 10PM-2AM. Most affected: MG Road corridor.,2026-07-02 14:03:00
-SESS003,USER003,List cases under IPC 420,8 cases found involving cheating/fraud under IPC 420.,2026-07-03 09:00:00
-SESS003,USER003,Show network connections,3 accused linked across 5 cases in organized theft ring.,2026-07-03 09:02:00
-SESS004,USER004,Generate investigation report for Case 1,Report generated: Case 202600001 — Theft at MG Road.,2026-07-04 11:00:00
+SESS002,USER002,Whose accused name is John Doe?,John Doe is accused in Case #1. Repeat offender.,2026-07-02 14:00:00
+SESS002,USER002,Map of all burglary cases,"Found 6 burglary cases in Indiranagar, Whitefield, Jayanagar.",2026-07-02 14:01:00
 SESS004,USER004,Similar cases to Case 2,3 similar assault cases found in Koramangala area.,2026-07-04 11:01:00
-SESS004,USER004,Predict next crime hotspot,Model predicts Whitefield as next hotspot (probability 0.74).,2026-07-04 11:02:00
-SESS005,USER005,How many accused per case?,"Average 1.7 accused per case. Max: 3 (Case #15, #23).",2026-07-05 15:30:00
-SESS005,USER005,Show unsolved cases,15 cases marked as Under Investigation.,2026-07-05 15:31:00
-SESS006,USER006,Compare this month vs last month,This month: 14 cases. Last month: 12 cases. 16.7% increase.,2026-07-06 10:00:00
-SESS006,USER006,Export crime statistics,CSV exported: crime_stats_jul_2026.csv (34 records).,2026-07-06 10:01:00

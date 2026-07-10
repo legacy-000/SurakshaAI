@@ -1,0 +1,9 @@
+account_id,account_number,account_holder_name,bank_name,account_type,is_synthetic
+1,SBIN1000,Ravi Kumar,State Bank of India,savings,1
+2,SBIN1001,Suresh P,State Bank of India,savings,1
+3,SBIN1002,Rajesh K,State Bank of India,savings,1
+4,SBIN1003,Manoj R,State Bank of India,savings,1
+5,SBIN1004,Venkatesh G,State Bank of India,savings,1
+6,SBIN1005,John Doe,State Bank of India,savings,1
+7,SBIN1006,Rohit Verma,State Bank of India,savings,1
+8,SBIN1007,Satish Shetty,State Bank of India,savings,1

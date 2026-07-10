@@ -1,0 +1,2 @@
+user_id,kgid,first_name,email,role_id,unit_id,district_id,language_preference,is_active,created_at,updated_at
+U001,KAR101001,Rajesh Kumar,rajesh.k@ksp.gov.in,1,1001,1,en,1,2025-01-01 00:00:00,2025-01-01 00:00:00

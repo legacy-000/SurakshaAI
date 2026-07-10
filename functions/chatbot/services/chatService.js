@@ -1,6 +1,7 @@
 import catalyst from 'zcatalyst-sdk-node';
 import config from '../lib/config.js';
 import { logger } from '../utils/logger.js';
+import LLMService from './llmService.js';
 
 const KANNADA_RANGE = /[\u0C80-\u0CFF]/;
 const DISTRICTS = [
@@ -12,6 +13,7 @@ const CRIME_TYPES = ['Theft', 'Robbery', 'Assault', 'Burglary', 'Murder', 'Cyber
 class ChatService {
   constructor(catalystApp) {
     this.catalystApp = catalystApp;
+    this.llm = new LLMService(catalystApp);
   }
 
   _detectLanguage(text) {
@@ -35,92 +37,60 @@ class ChatService {
   }
 
   async _classifyIntent(question) {
-    try {
-      const model = this.catalystApp.quickML().model('crime_intent_model');
-      const prediction = await model.predict({ text: question });
-      return prediction?.output || 'crime_query';
-    } catch {
-      const lower = question.toLowerCase();
-      if (lower.includes('trend') || lower.includes('month') || lower.includes('increase')) return 'trend_query';
-      if (lower.includes('hotspot') || lower.includes('area') || lower.includes('location') || lower.includes('cluster')) return 'hotspot_query';
-      if (lower.includes('who') || lower.includes('offender') || lower.includes('accused') || lower.includes('suspect')) return 'offender_search';
-      if (lower.includes('forecast') || lower.includes('predict') || lower.includes('future')) return 'forecast_query';
-      return 'crime_query';
-    }
+    const llmIntent = await this.llm.classifyIntent(question);
+    if (llmIntent) return llmIntent;
+    const lower = question.toLowerCase();
+    if (lower.includes('trend') || lower.includes('month') || lower.includes('increase')) return 'trend_query';
+    if (lower.includes('hotspot') || lower.includes('area') || lower.includes('location') || lower.includes('cluster')) return 'hotspot_query';
+    if (lower.includes('who') || lower.includes('offender') || lower.includes('accused') || lower.includes('suspect')) return 'offender_search';
+    if (lower.includes('forecast') || lower.includes('predict') || lower.includes('future')) return 'forecast_query';
+    return 'crime_query';
   }
 
-  _buildSql(question, crimeType, district, intent) {
+  async _buildSql(question, crimeType, district, intent) {
+    if (this.llm) {
+      const llmSql = await this.llm.generateSql(question, crimeType, district);
+      if (llmSql && llmSql.toUpperCase().startsWith('SELECT')) return llmSql;
+    }
     const ct = crimeType || 'Theft';
     const dist = district || 'Bengaluru Urban';
-
     switch (intent) {
       case 'crime_query':
-        return `
-          SELECT COUNT(*) as total FROM CaseMaster cm
-          JOIN Unit u ON cm.PoliceStationID = u.UnitID
-          JOIN District d ON u.DistrictID = d.DistrictID
-          WHERE d.DistrictName LIKE '%${dist}%'
-          AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)})
-          AND YEAR(cm.CrimeRegisteredDate) = YEAR(CURRENT_DATE)
-        `;
+        return `SELECT COUNT(*) as total FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID WHERE d.DistrictName LIKE '%${dist}%' AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)}) AND YEAR(cm.CrimeRegisteredDate) = YEAR(CURRENT_DATE)`;
       case 'trend_query':
-        return `
-          SELECT MONTH(cm.CrimeRegisteredDate) as month, COUNT(*) as count
-          FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID
-          JOIN District d ON u.DistrictID = d.DistrictID
-          WHERE d.DistrictName LIKE '%${dist}%'
-          AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)})
-          AND YEAR(cm.CrimeRegisteredDate) = YEAR(CURRENT_DATE)
-          GROUP BY MONTH(cm.CrimeRegisteredDate) ORDER BY month
-        `;
+        return `SELECT MONTH(cm.CrimeRegisteredDate) as month, COUNT(*) as count FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID WHERE d.DistrictName LIKE '%${dist}%' AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)}) AND YEAR(cm.CrimeRegisteredDate) = YEAR(CURRENT_DATE) GROUP BY MONTH(cm.CrimeRegisteredDate) ORDER BY month`;
       case 'hotspot_query':
-        return `
-          SELECT cm.PoliceStationID, COUNT(*) as case_count, AVG(d.DistrictID) as district_id
-          FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID
-          JOIN District d ON u.DistrictID = d.DistrictID
-          WHERE d.DistrictName LIKE '%${dist}%'
-          AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)})
-          GROUP BY cm.PoliceStationID ORDER BY case_count DESC LIMIT 10
-        `;
+        return `SELECT cm.PoliceStationID, COUNT(*) as case_count, AVG(d.DistrictID) as district_id FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID WHERE d.DistrictName LIKE '%${dist}%' AND cm.CrimeMinorHeadID IN (${this._getCrimeHeadSql(ct)}) GROUP BY cm.PoliceStationID ORDER BY case_count DESC LIMIT 10`;
       case 'offender_search':
-        return `
-          SELECT a.AccusedName, COUNT(*) as case_count
-          FROM Accused a JOIN CaseMaster cm ON a.CaseMasterID = cm.CaseMasterID
-          WHERE a.AccusedName LIKE '%${question.split(' ').slice(0, 3).join('%')}%'
-          GROUP BY a.AccusedName ORDER BY case_count DESC LIMIT 10
-        `;
+        return `SELECT a.AccusedName, COUNT(*) as case_count FROM Accused a JOIN CaseMaster cm ON a.CaseMasterID = cm.CaseMasterID WHERE a.AccusedName LIKE '%${question.split(' ').slice(0, 3).join('%')}%' GROUP BY a.AccusedName ORDER BY case_count DESC LIMIT 10`;
       default:
         return `SELECT COUNT(*) as total FROM CaseMaster`;
     }
   }
 
-  _formatAnswer(sqlResult, intent, crimeType, district, lang) {
+  async _formatAnswer(sqlResult, question, intent, crimeType, district, lang) {
+    if (this.llm) {
+      const llmAnswer = await this.llm.generateAnswer(question, sqlResult, intent, lang);
+      if (llmAnswer) return llmAnswer;
+    }
     const ct = crimeType || 'crime';
     const dist = district || 'Karnataka';
-
     if (intent === 'trend_query') {
       const en = `Monthly ${ct} trends in ${dist} analyzed across ${sqlResult?.length || 0} periods.`;
       const kn = `${dist}ನಲ್ಲಿ ಮಾಸಿಕ ${ct} ಪ್ರವೃತ್ತಿಗಳನ್ನು ${sqlResult?.length || 0} ಅವಧಿಗಳಲ್ಲಿ ವಿಶ್ಲೇಷಿಸಲಾಗಿದೆ.`;
       return lang === 'kn' ? kn : en;
     }
-
     if (intent === 'hotspot_query') {
       const count = sqlResult?.length || 0;
       const en = `Found ${count} high-${ct} areas in ${dist}. ${count > 0 ? 'Top hotspot has ' + sqlResult[0]?.case_count + ' cases.' : ''}`;
       const kn = `${dist}ನಲ್ಲಿ ${count} ಹೆಚ್ಚಿನ ${ct} ಪ್ರದೇಶಗಳು ಪತ್ತೆಯಾಗಿವೆ.`;
       return lang === 'kn' ? kn : en;
     }
-
     if (intent === 'offender_search') {
-      const en = sqlResult?.length > 0
-        ? `${sqlResult[0].AccusedName} linked to ${sqlResult[0].case_count} cases.`
-        : 'No matching offenders found.';
-      const kn = sqlResult?.length > 0
-        ? `${sqlResult[0].AccusedName} ${sqlResult[0].case_count} ಪ್ರಕರಣಗಳೊಂದಿಗೆ ಸಂಬಂಧ ಹೊಂದಿದ್ದಾರೆ.`
-        : 'ಯಾವುದೇ ಆರೋಪಿಗಳು ಕಂಡುಬಂದಿಲ್ಲ.';
+      const en = sqlResult?.length > 0 ? `${sqlResult[0].AccusedName} linked to ${sqlResult[0].case_count} cases.` : 'No matching offenders found.';
+      const kn = sqlResult?.length > 0 ? `${sqlResult[0].AccusedName} ${sqlResult[0].case_count} ಪ್ರಕರಣಗಳೊಂದಿಗೆ ಸಂಬಂಧ ಹೊಂದಿದ್ದಾರೆ.` : 'ಯಾವುದೇ ಆರೋಪಿಗಳು ಕಂಡುಬಂದಿಲ್ಲ.';
       return lang === 'kn' ? kn : en;
     }
-
     const count = sqlResult?.[0]?.total || 0;
     const en = `Found ${count} ${ct} cases in ${dist} for the current year.`;
     const kn = `${dist}ನಲ್ಲಿ ಪ್ರಸಕ್ತ ವರ್ಷದಲ್ಲಿ ${count} ${ct} ಪ್ರಕರಣಗಳು ಪತ್ತೆಯಾಗಿವೆ.`;
@@ -140,7 +110,7 @@ class ChatService {
 
     try {
       const zcql = this.catalystApp.zcql();
-      sql = this._buildSql(question, crimeType, district, intent);
+      sql = await this._buildSql(question, crimeType, district, intent);
       sqlResult = await zcql.executeZCQLQuery(sql);
       logger.info('ZCQL query executed', { intent, rowCount: sqlResult?.length });
     } catch (err) {
@@ -149,7 +119,7 @@ class ChatService {
       sqlResult = [{ total }];
     }
 
-    const answer = this._formatAnswer(sqlResult, intent, crimeType, district, lang);
+    const answer = await this._formatAnswer(sqlResult, question, intent, crimeType, district, lang);
 
     return {
       answer,

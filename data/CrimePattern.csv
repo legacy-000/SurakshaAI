@@ -8,4 +8,4 @@ Market Chain Snatching,Gold chain snatching in crowded market areas,Robbery,200,
 Pub Brawl Seasonals,Assaults outside pubs Fri-Sat nights,Assault,150,Fri-Sat 23:00-03:00,"pub-area,weekend,alcohol-fueled"
 ATM Robbery Cluster,Targeting solo ATM users late night,Robbery,100,All days 22:00-02:00,"atm-target,solo-victim,weapon-show"
 College Drug Distribution,Drug peddling near college campuses during semesters,Drug Offence,300,Mon-Sat 10:00-16:00,"college-area,cannabis,p2p-sale"
-DTPH Pattern,Dowry harassment cases post-wedding first 3 years,Domestic Crime,50,All days all hours,"dowry-harassment,in-laws,marital"
+Dowry Harassment Pattern,Dowry harassment cases post-wedding first 3 years,Domestic Crime,50,All days all hours,"dowry-harassment,in-laws,marital"
