@@ -1,8 +1,8 @@
 import uuid
 import math
 from datetime import datetime
-from common.models.dto import PriorityScoreDTO, PriorityScoreFeature
-from common.config.constants import IPS_FEATURE_NAMES, IPS_FEATURE_WEIGHTS, SCORE_VERSION
+from models.dto import PriorityScoreDTO, PriorityScoreFeature
+from config.constants import IPS_FEATURE_NAMES, IPS_FEATURE_WEIGHTS, SCORE_VERSION
 
 
 class PriorityScorer:

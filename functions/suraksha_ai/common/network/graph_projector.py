@@ -1,6 +1,6 @@
 import uuid
 import random
-from common.models.dto import GraphProjectionDTO, GraphNodeDTO, GraphEdgeDTO
+from models.dto import GraphProjectionDTO, GraphNodeDTO, GraphEdgeDTO
 
 
 class GraphProjector:

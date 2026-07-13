@@ -9,6 +9,8 @@ EXAMPLES_KB_NAME = "ksp-dev-rag-kb-examples"
 class SchemaRAGRetriever:
     def __init__(self, catalyst_app=None):
         self._catalyst_app = catalyst_app
+        from common.db.datastore_client import DatastoreClient
+        self._db = DatastoreClient(catalyst_app)
 
     @property
     def is_available(self):

@@ -3,7 +3,9 @@
 		"name": "suraksha_ai",
 		"stack": "python_3_11",
 		"type": "advancedio",
-		"env_variables": {}
+		"env_variables": {
+			"PYTHONPATH": "C:\\Users\\Dell\\AppData\\Local\\zcatalyst-cli-runtimes\\Data\\python\\zcatalyst_runtime_311"
+		}
 	},
 	"execution": {
 		"main": "main.py"

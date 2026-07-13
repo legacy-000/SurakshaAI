@@ -1,5 +1,5 @@
 import random
-from common.models.dto import DashboardStatsDTO
+from models.dto import DashboardStatsDTO
 
 
 class StatsAggregator:

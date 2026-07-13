@@ -1,7 +1,7 @@
 import uuid
 import random
 from datetime import datetime
-from common.models.dto import EarlyWarningAlertDTO
+from models.dto import EarlyWarningAlertDTO
 
 
 class AlertEngine:

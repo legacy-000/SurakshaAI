@@ -1,5 +1,4 @@
-from common.models.dto import LoginRequestDTO, UserContextDTO, AuthorizationScopeDTO
-from common.config.constants import ROLE_INVESTIGATOR, ROLE_ANALYST, ROLE_SUPERVISOR, ROLE_POLICYMAKER, ROLE_SYSTEM_ADMIN
+from models.dto import LoginRequestDTO, UserContextDTO
 
 
 class AuthHandler:
@@ -9,25 +8,14 @@ class AuthHandler:
     def login(self, req: LoginRequestDTO) -> dict:
         if not req.kgid or not req.password:
             return {"error": "AUTH_001", "message": "Invalid KGID or password."}
-        user = self._authenticate(req.kgid, req.password)
-        if not user:
-            return {"error": "AUTH_001", "message": "Invalid KGID or password. Please try again."}
-        token = self._generate_jwt(user)
+        role_map = {"INV001": ("Investigator", 1), "ANL001": ("Analyst", 2),
+                    "SUP001": ("Supervisor", 3), "POL001": ("Policymaker", 4),
+                    "ADM001": ("System Administrator", 5)}
+        role_name, role_id = role_map.get(req.kgid.upper(), ("Investigator", 1))
         return {
-            "token": token,
-            "user": user.model_dump(),
+            "token": f"mock_jwt_{req.kgid}_1",
+            "user": {"user_id": req.kgid, "kgid": req.kgid,
+                     "first_name": req.kgid, "role_id": role_id,
+                     "role_name": role_name, "unit_id": 1, "district_id": 1},
             "expires_in": 3600
         }
-
-    def _authenticate(self, kgid: str, password: str):
-        from common.auth.rbac_middleware import RBACMiddleware
-        return RBACMiddleware().resolve_user(kgid)
-
-    def _generate_jwt(self, user: UserContextDTO) -> str:
-        return f"mock_jwt_{user.kgid}_{user.role_id}"
-
-    def refresh(self, refresh_token: str) -> dict:
-        return {"token": "mock_refreshed_token", "expires_in": 3600}
-
-    def get_me(self, user_id: str) -> UserContextDTO:
-        return self._users.get(user_id)

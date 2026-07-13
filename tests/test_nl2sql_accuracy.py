@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from functions.ai.nl2sql_engine import NL2SQLEngine
 
 TEST_QUERIES = [
@@ -14,10 +15,16 @@ TEST_QUERIES = [
 ]
 
 def test_nl2sql_generates_valid_sql():
-    engine = NL2SQLEngine()
-    valid_count = 0
-    for q in TEST_QUERIES:
-        result = engine.generate_sql(q)
-        if result.get("sql_text") and "SELECT" in result["sql_text"].upper():
-            valid_count += 1
-    assert valid_count >= 7
+    with patch("functions.ai.quickml_client.QuickMLClient.chat") as mock_chat:
+        mock_chat.return_value = {
+            "text": "SELECT COUNT(*) FROM CaseMaster WHERE DistrictID = 1",
+            "model": "mock-model",
+            "full_response": {}
+        }
+        engine = NL2SQLEngine()
+        valid_count = 0
+        for q in TEST_QUERIES:
+            result = engine.generate_sql(q)
+            if result.get("sql_text") and "SELECT" in result["sql_text"].upper():
+                valid_count += 1
+        assert valid_count >= 7

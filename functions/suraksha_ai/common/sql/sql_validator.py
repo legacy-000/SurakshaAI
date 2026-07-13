@@ -1,6 +1,3 @@
-import sqlparse
-
-
 class SQLValidator:
     ALLOWED_TABLES = {
         "CaseMaster", "ComplainantDetails", "Victim", "Accused",
@@ -25,11 +22,3 @@ class SQLValidator:
 
         return {"is_valid": True, "validated_sql": sql_text, "warnings": []}
 
-    def _validate_syntax(self, sql_text: str) -> list[str]:
-        try:
-            parsed = sqlparse.parse(sql_text)
-            if not parsed or not parsed[0].tokens:
-                return ["Unable to parse SQL"]
-            return []
-        except Exception as e:
-            return [str(e)]

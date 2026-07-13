@@ -1,77 +1,60 @@
 import logging
-import time
-import uuid
 
 logger = logging.getLogger(__name__)
-
-
-class DatastoreNotConnectedError(Exception):
-    pass
 
 
 class DatastoreClient:
     def __init__(self, catalyst_app=None):
         self._catalyst_app = catalyst_app
+        if catalyst_app is None:
+            try:
+                import zcatalyst_sdk
+                self._catalyst_app = zcatalyst_sdk.initialize()
+            except Exception as e:
+                logger.info("Catalyst SDK not auto-initialized: %s", e)
 
     @property
     def is_connected(self):
         return self._catalyst_app is not None
 
-    def execute_query(self, sql_text: str, max_rows: int = 1000, timeout: int = 30) -> dict:
-        query_id = str(uuid.uuid4())
-        start = time.time()
-
-        if not sql_text:
-            return {"error": "DB_EMPTY_QUERY", "message": "Empty SQL query", "query_id": query_id}
-
+    def execute_non_query(self, sql: str) -> dict:
         if not self.is_connected:
-            try:
-                from common.main_handler import _init_error
-            except Exception:
-                _init_error = "Could not import main_handler"
-            return {
-                "error": "DB_NOT_CONNECTED",
-                "message": f"Catalyst DataStore is not connected. SDK Init Error: {_init_error}",
-                "query_id": query_id,
-                "execution_status": "failed",
-                "execution_time_ms": 0,
-            }
-
-        return self._real_query(sql_text, query_id, start)
-
-    def _real_query(self, sql_text: str, query_id: str, start: float) -> dict:
+            return {"error": "DB_NOT_CONNECTED", "message": "Database not connected"}
         try:
-            zcql = self._catalyst_app.zcql()
-            raw = zcql.execute_query(sql_text)
-
-            if not raw or not isinstance(raw, list):
-                rows, columns = [], []
-            else:
-                columns = list(raw[0].keys()) if raw else []
-                rows = [[row.get(col) for col in columns] for row in raw]
-
-            elapsed = int((time.time() - start) * 1000)
-            return {
-                "query_id": query_id,
-                "execution_status": "success",
-                "execution_time_ms": elapsed,
-                "row_count": len(rows),
-                "columns": columns,
-                "rows": rows,
-            }
-
+            raw = self._catalyst_app.zcql().execute_query(sql)
+            if not raw:
+                return {"status": "success", "row_count": 0, "columns": [], "rows": [], "response": str(raw)}
+            # ZCQL returns: [{"TableName": {"col1": "val1", "col2": "val2", ...}}, ...]
+            inner = list(raw[0].values())[0] if isinstance(raw[0], dict) else {}
+            cols = list(inner.keys())
+            vals = [list(list(r.values())[0].values()) for r in raw if isinstance(r, dict) and r]
+            return {"status": "success", "row_count": len(vals), "columns": cols, "rows": vals, "response": str(raw)}
         except Exception as e:
-            logger.error("ZCQL query failed: %s", e)
-            try:
-                tables = self._catalyst_app.datastore().get_all_tables()
-                table_names = [t.table_name if hasattr(t, "table_name") else (t.get("table_name") if isinstance(t, dict) else str(t)) for t in tables]
-            except Exception as e2:
-                table_names = f"Failed to get tables: {e2}"
-            elapsed = int((time.time() - start) * 1000)
-            return {
-                "error": "DB_QUERY_FAILED",
-                "message": f"{str(e)} | Available tables: {table_names}",
-                "query_id": query_id,
-                "execution_status": "failed",
-                "execution_time_ms": elapsed,
-            }
+            logger.error("ZCQL execute failed: %s", e)
+            return {"error": "DB_EXEC_FAILED", "message": str(e)}
+
+    def insert_bulk_rows(self, table_name: str, rows: list) -> dict:
+        if not self.is_connected:
+            return {"error": "DB_NOT_CONNECTED", "message": "Database not connected"}
+        try:
+            count = 0
+            for row in rows:
+                cols = ", ".join(row.keys())
+                vals = []
+                for v in row.values():
+                    if v is None:
+                        vals.append("NULL")
+                    elif isinstance(v, bool):
+                        vals.append("true" if v else "false")
+                    elif isinstance(v, (int, float)):
+                        vals.append(str(v))
+                    else:
+                        vals.append(f"'{str(v).replace(chr(39), chr(39)+chr(39))}'")
+                res = self.execute_non_query(f"INSERT INTO {table_name} ({cols}) VALUES ({', '.join(vals)})")
+                if "error" in res:
+                    return {"error": "DB_BULK_INSERT_FAILED", "message": res.get("message", ""), "sql": f"INSERT INTO {table_name} ({cols}) VALUES (...)"}
+                count += 1
+            return {"status": "success", "inserted": count}
+        except Exception as e:
+            logger.error("Bulk insert failed for %s: %s", table_name, e)
+            return {"error": "DB_BULK_INSERT_FAILED", "message": str(e)}

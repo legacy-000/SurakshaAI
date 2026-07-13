@@ -1,7 +1,7 @@
 import uuid
 import random
 from datetime import datetime, timedelta
-from common.models.dto import ForecastRequestDTO, ForecastResultDTO, ForecastDataPoint, EvidenceReferenceDTO
+from models.dto import ForecastRequestDTO, ForecastResultDTO, ForecastDataPoint, EvidenceReferenceDTO
 
 
 class Forecaster:

@@ -1,6 +1,6 @@
 import random
 import math
-from common.models.dto import HotspotRequestDTO, HotspotResultDTO, HotspotClusterDTO, EvidenceReferenceDTO
+from models.dto import HotspotRequestDTO, HotspotResultDTO, HotspotClusterDTO, EvidenceReferenceDTO
 
 
 class HotspotDetector:

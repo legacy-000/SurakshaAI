@@ -5,8 +5,8 @@ class QueryExecutor:
     def __init__(self, catalyst_app=None):
         self.client = DatastoreClient(catalyst_app)
 
-    def execute(self, sql_text: str, max_rows: int = 1000, timeout: int = 30) -> dict:
-        return self.client.execute_query(sql_text, max_rows, timeout)
+    def execute(self, sql_text: str, max_rows=1000, timeout=30) -> dict:
+        return self.client.execute_non_query(sql_text)
 
     @property
     def is_connected(self):

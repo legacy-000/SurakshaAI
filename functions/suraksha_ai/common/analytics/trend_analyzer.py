@@ -1,6 +1,6 @@
 import random
 from datetime import datetime, timedelta
-from common.models.dto import CrimeTrendRequestDTO, CrimeTrendResultDTO, EvidenceReferenceDTO
+from models.dto import CrimeTrendRequestDTO, CrimeTrendResultDTO, EvidenceReferenceDTO
 
 
 class TrendAnalyzer:

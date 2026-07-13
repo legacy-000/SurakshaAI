@@ -35,12 +35,7 @@ class QuickMLClient:
 
     def chat(self, messages: list[dict], temperature: float = 0.1, max_tokens: int = 4096) -> dict:
         if not self.is_available:
-            # Local mock mode fallback for testing and offline development
-            return {
-                "text": "SELECT COUNT(*) FROM CaseMaster WHERE CrimeRegisteredDate >= '2024-01-01' LIMIT 100;",
-                "model": self.model_id,
-                "full_response": {}
-            }
+            return {"error": "QUICKML_NOT_AVAILABLE", "message": "Catalyst app context not initialized. Inference is unavailable."}
 
         try:
             import requests
@@ -95,7 +90,7 @@ class QuickMLClient:
 
     def get_embeddings(self, text: str) -> list[float]:
         if not self.is_available:
-            return [0.1] * 384
+            raise RuntimeError("Catalyst app context not initialized. Embedding is unavailable.")
 
         try:
             model = self._catalyst_app.quick_ml().model(self.model_id)

@@ -31,7 +31,17 @@ PROMPTS_SRC = os.path.join(FUNCTIONS_DIR, "ai", "prompts")
 def clean_target():
     if os.path.exists(TARGET_DIR):
         print(f"Cleaning {TARGET_DIR}...")
-        shutil.rmtree(TARGET_DIR)
+        for item in os.listdir(TARGET_DIR):
+            if item == "main_handler.py":
+                continue
+            path = os.path.join(TARGET_DIR, item)
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+            except Exception as e:
+                print(f"  Warning: failed to clean {item}: {e}")
 
 
 def copy_module(name):
