@@ -5,10 +5,8 @@ from datetime import datetime
 from models.dto import (
     QueryRequestDTO, ConversationMessageDTO, EvidenceReferenceDTO
 )
-from common.ai.nl2sql_engine import NL2SQLEngine
 from common.sql.query_executor import QueryExecutor
 from common.ai.answer_generator import AnswerGenerator
-from common.utils.viz_recommender import VizRecommender
 
 
 class InMemoryConversation:
@@ -49,6 +47,41 @@ CRIME_KEYWORDS = {
     "cyber": "Cyber Crime",
 }
 
+# Map colloquial place names → exact DistrictName in DB
+# Special key "__all__" means skip the filter (state-level or unknown region)
+# ponytail: static map, covers common Karnataka queries; expand if users ask for smaller taluks
+PLACE_DISTRICT_MAP = {
+    "karnataka": "__all__",
+    "bangalore": "Bangalore Urban",
+    "bengaluru": "Bangalore Urban",
+    "bangalore urban": "Bangalore Urban",
+    "bangalore rural": "Bangalore Rural",
+    "mysuru": "Mysuru",
+    "mysore": "Mysuru",
+    "hubli": "Hubli",
+    "mangalore": "Mangalore",
+    "mangaluru": "Mangalore",
+    "belgaum": "Belgaum",
+    "belagavi": "Belgaum",
+    "dharwad": "Dharwad",
+    "shivamogga": "Shivamogga",
+    "shimoga": "Shivamogga",
+    "tumkur": "Tumkur",
+    "kalaburagi": "Kalaburagi",
+    "gulbarga": "Kalaburagi",
+}
+
+# Map status keywords → CaseStatusName in DB
+STATUS_MAP = {
+    "under investigation": "Under Investigation",
+    "active": "Under Investigation",
+    "charge sheet filed": "Charge Sheet Filed",
+    "charge sheet": "Charge Sheet Filed",
+    "court proceedings": "Court Proceedings",
+    "court": "Court Proceedings",
+    "closed": "Closed",
+}
+
 TOTAL_RE = re.compile(r"(total|count|how many)\s+(cases|firs)", re.I)
 STATS_RE = re.compile(r"(crime\s+)?statistics|summary|overview", re.I)
 ALL_CASES_RE = re.compile(r"(show|list|find|get)\s+(me\s+|all\s+)?(cases|firs)", re.I)
@@ -57,50 +90,127 @@ CASES_IN_RE = re.compile(r"(cases|firs)(\s+in|\s+at|\s+for)?\s+(.+)$", re.I)
 SPLIT_RE = re.compile(r"split|breakdown|per\s+(place|district|city|area)|by\s+(place|district|city|area)|each\s+(place|district)", re.I)
 MAP_RE = re.compile(r"(show|on)\s+(a\s+)?map|map\s+view|where\s+are", re.I)
 FOLLOWUP_DENY_RE = re.compile(r"^(show on map|compare with last year|which had arrests|show top 5 districts|show by district|by officer|overdue|pending)\s*$", re.I)
+LOCATION_RE = re.compile(r'(?:in|at|for)\s+(\w+(?:\s+\w+)?)(?:\s+(?:district|city|area|region))?\s*$', re.I)
+TEMPORAL_THIS_YEAR_RE = re.compile(r'\bthis\s+year\b', re.I)
+TEMPORAL_LAST_YEAR_RE = re.compile(r'\blast\s+year\b', re.I)
+TEMPORAL_YEAR_RE = re.compile(r'\b(202[0-9])\s+cases\b', re.I)
+TEMPORAL_SINCE_RE = re.compile(r'\b(?:since|after|from)\s+(202[0-9])\b', re.I)
 
 
 class ChatHandler:
     def __init__(self, catalyst_app=None):
         self.conversation_manager = InMemoryConversation()
-        self.nl2sql = NL2SQLEngine(catalyst_app)
         self.executor = QueryExecutor(catalyst_app)
         self.answer_gen = AnswerGenerator()
         self.evidence_builder = EvidenceBuilder()
-        self.viz_recommender = VizRecommender()
+
+    def _extract_place(self, msg: str) -> str:
+        m = LOCATION_RE.search(msg)
+        if m:
+            return m.group(1).strip().lower()
+        return ''
+
+    def _location_clause(self, msg: str) -> str:
+        place = self._extract_place(msg)
+        if not place:
+            return ''
+        district_name = PLACE_DISTRICT_MAP.get(place)
+        if not district_name:
+            return ''
+        if district_name == "__all__":
+            return ''
+        dist_result = self.executor.execute(
+            f"SELECT DistrictID FROM District WHERE DistrictName = '{district_name}'"
+        )
+        if dist_result.get("error") or dist_result.get("row_count", 0) == 0:
+            return ''
+        dist_id = dist_result["rows"][0][0]
+        unit_result = self.executor.execute(
+            f"SELECT UnitID FROM Unit WHERE DistrictID = {dist_id}"
+        )
+        if unit_result.get("error") or unit_result.get("row_count", 0) == 0:
+            return ''
+        unit_ids = [str(r[0]) for r in unit_result.get("rows", []) if r]
+        if not unit_ids:
+            return ''
+        return f"PoliceStationID IN ({','.join(unit_ids)})"
+
+    def _status_clause(self, msg: str) -> str:
+        for key, status_name in STATUS_MAP.items():
+            if key in msg:
+                result = self.executor.execute(
+                    f"SELECT CaseStatusID FROM CaseStatusMaster WHERE CaseStatusName = '{status_name}'"
+                )
+                if not result.get("error") and result.get("row_count", 0) > 0:
+                    sid = result["rows"][0][0]
+                    return f"CaseStatusID = {sid}"
+        return ''
+
+    def _temporal_clause(self, msg: str) -> str:
+        now = datetime.now()
+        if TEMPORAL_THIS_YEAR_RE.search(msg):
+            return f"CrimeRegisteredDate >= '{now.year}-01-01'"
+        if TEMPORAL_LAST_YEAR_RE.search(msg):
+            return (f"CrimeRegisteredDate >= '{now.year - 1}-01-01' "
+                    f"AND CrimeRegisteredDate < '{now.year}-01-01'")
+        m = TEMPORAL_YEAR_RE.search(msg)
+        if m:
+            y = m.group(1)
+            return f"CrimeRegisteredDate >= '{y}-01-01' AND CrimeRegisteredDate < '{int(y) + 1}-01-01'"
+        m = TEMPORAL_SINCE_RE.search(msg)
+        if m:
+            return f"CrimeRegisteredDate >= '{m.group(1)}-01-01'"
+        return ''
+
+    def _build_where(self, *clauses: str) -> str:
+        non_empty = [c for c in clauses if c]
+        return ' WHERE ' + ' AND '.join(non_empty) if non_empty else ''
+
+    def _case_cols(self, extra: str = '') -> str:
+        cols = 'ROWID, CaseNo, CrimeNo, CrimeRegisteredDate'
+        return f'{cols}, {extra}' if extra else cols
 
     def _match_common_query(self, message: str) -> str:
         msg = message.strip().lower()
-        # Followup denial — return all cases for templated followups like "Show on map"
         if FOLLOWUP_DENY_RE.search(msg):
             return "SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, latitide, longitude, BriedFacts FROM CaseMaster LIMIT 50"
-        # Total cases
         if TOTAL_RE.search(msg):
             return "SELECT COUNT(ROWID) AS total_cases FROM CaseMaster"
-        # Crime statistics / breakdown by type
         if STATS_RE.search(msg) or SPLIT_RE.search(msg):
             return "SELECT CrimeMinorHeadID, COUNT(ROWID) AS cnt FROM CaseMaster GROUP BY CrimeMinorHeadID"
-        # Map view
         if MAP_RE.search(msg):
             return "SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, latitide, longitude, BriedFacts FROM CaseMaster WHERE latitide IS NOT NULL LIMIT 50"
-        # Crime-type-specific: first look up the CrimeSubHeadID
+
+        # Extract filter clauses — they work independently
+        loc_clause = self._location_clause(msg)
+        status_clause = self._status_clause(msg)
+        temporal_clause = self._temporal_clause(msg)
+        where = self._build_where(loc_clause, status_clause, temporal_clause)
+
+        # Crime-type specific — runs its own lookup, appends extra filters
         m = SHOW_CRIME_RE.search(msg)
         if m:
             keyword = m.group(3).lower().rstrip('s')
-            canonical = CRIME_KEYWORDS.get(keyword, None)
+            canonical = CRIME_KEYWORDS.get(keyword)
             if canonical:
                 lookup = self.executor.execute(
                     f"SELECT CrimeSubHeadID FROM CrimeSubHead WHERE CrimeHeadName = '{canonical}'"
                 )
                 if not lookup.get("error") and lookup.get("row_count", 0) > 0:
-                    rows = lookup.get("rows", [])
-                    ids = [str(r[0]) for r in rows if r]
+                    ids = [str(r[0]) for r in lookup.get("rows", []) if r]
                     if ids:
-                        return f"SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, CrimeMinorHeadID, BriedFacts FROM CaseMaster WHERE CrimeMinorHeadID IN ({','.join(ids)}) LIMIT 50"
-                return "SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate FROM CaseMaster LIMIT 50"
-        # Show all cases
-        if ALL_CASES_RE.search(msg) or CASES_IN_RE.search(msg):
-            return "SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, BriedFacts FROM CaseMaster LIMIT 50"
-        # Always return something — skip unreliable NL2SQL
+                        crime_where = f"CrimeMinorHeadID IN ({','.join(ids)})"
+                        extra = f"CrimeMinorHeadID, BriedFacts"
+                        w = self._build_where(crime_where, loc_clause, status_clause, temporal_clause)
+                        return f"SELECT {self._case_cols(extra)} FROM CaseMaster{w} LIMIT 50"
+                w = self._build_where(loc_clause, status_clause, temporal_clause)
+                return f"SELECT {self._case_cols('BriedFacts')} FROM CaseMaster{w} LIMIT 50"
+
+        # Only location/status/temporal filters
+        if loc_clause or status_clause or temporal_clause:
+            return f"SELECT {self._case_cols('BriedFacts')} FROM CaseMaster{where} LIMIT 50"
+
+        # Show all / catch-all
         return "SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, BriedFacts FROM CaseMaster LIMIT 50"
 
     def handle_query(self, req: QueryRequestDTO, user_context=None) -> ConversationMessageDTO:
@@ -152,7 +262,6 @@ class ChatHandler:
 
         evidence = self.evidence_builder.build_evidence(exec_result)
         answer = self.answer_gen.generate(exec_result, req.message)
-        chart = self.viz_recommender.recommend(exec_result)
 
         msg = ConversationMessageDTO(
             message_id=str(uuid.uuid4()), conversation_id=conv_id,
@@ -161,7 +270,6 @@ class ChatHandler:
             query_id=exec_result.get("query_id"),
             evidence_refs=evidence,
             confidence_class="high", grounding_status="verified",
-            chart_recommendation=chart,
             suggested_followups=self._generate_followups(exec_result),
             created_at=datetime.now().isoformat()
         )

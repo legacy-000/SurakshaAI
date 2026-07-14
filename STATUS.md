@@ -26,10 +26,17 @@
 | Feature | Status | Reason |
 |---------|--------|--------|
 | NL2SQL model | ❌ **Disabled** | Catalyst GLM generates invalid ZCQL (`CaseMasterID`, JOINs, LIKE, COUNT(*) ) — never produced a single valid query |
-| Location filtering | ❌ **No LIKE/subquery** in ZCQL | Cannot `WHERE UnitName LIKE '%Bangalore%'` or use `IN (SELECT...)` |
 | Ad-hoc JOINs | ❌ **ZCQL limitation** | No implicit JOINs; only Catalyst-defined relationships work (none configured for these tables) |
-| Case status filtering | ❌ **Pattern not implemented** | "active/pending cases" queries hit generic fallback |
-| Temporal filters | ❌ **Pattern not implemented** | "this year / last year / compare" hit generic fallback |
+
+### Recently Added (2026-07-13)
+
+| Feature | How It Works |
+|---------|-------------|
+| **Location filtering** | `LOCATION_RE` extracts "in/at/for <place>" → `PLACE_DISTRICT_MAP` maps to district name → two-step ZCQL: `SELECT DistrictID FROM District WHERE DistrictName = 'X'` → `SELECT UnitID FROM Unit WHERE DistrictID = Y` → `WHERE PoliceStationID IN (ids)` |
+| **Status filtering** | `STATUS_MAP` maps keywords ("active"→"Under Investigation", "closed"→"Closed") → `SELECT CaseStatusID FROM CaseStatusMaster` → `WHERE CaseStatusID = Z` |
+| **Temporal filtering** | Regex for "this year", "last year", "2024 cases", "since 2024" → `WHERE CrimeRegisteredDate >= 'YYYY-01-01'` |
+| **Combined queries** | Crime type + location + status + temporal all AND-ed together (e.g., "theft cases in Bangalore in 2024") |
+| **Karnataka state-level** | `"karnataka"` mapped to `__all__` sentinel → no filter (all data is Karnataka) |
 
 ---
 
@@ -166,9 +173,10 @@ Build a lightweight aggregation layer in the Python function that:
 
 ## Recommended Next Steps
 
-1. **Location queries**: Query Unit table → get DistrictID → query CaseMaster
-2. **Case status filter**: Query CaseStatusMaster → filter CaseMaster by CaseStatusID
-3. **Timeline queries**: Query ChargesheetDetails by csdate for charts
-4. **Demographic analysis**: Query ComplainantDetails → join OccupationMaster in Python
-5. **Accused profiles**: Query Accused → group by name (repeat offender detection)
-6. **Arrest data**: Query ArrestSurrender → group by PoliceStationID
+1. ✅ ~~Location queries~~ — **Done** (two-step Unit/District lookup)
+2. ✅ ~~Case status filter~~ — **Done** (two-step CaseStatusMaster lookup)
+3. ✅ ~~Temporal queries~~ — **Done** (direct date comparison on CrimeRegisteredDate)
+4. **Standalone table queries**: Query non-CaseMaster tables directly — Accused count, Chargesheet details, complainant demographics, etc.
+5. **Application-layer aggregation (Strategy 5)**: Build Python endpoint that aggregates across tables (total cases + accused + chargesheet status + per-type stats) for the dashboard overview
+6. **Frontend client-side joins (Strategy 3)**: Fetch Unit/District lists in frontend and merge with CaseMaster data for richer display
+7. **Accused profiles**: Query Accused → group by name for repeat offender detection
