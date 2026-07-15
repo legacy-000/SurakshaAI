@@ -28,7 +28,7 @@
 | NL2SQL model | ❌ **Disabled** | Catalyst GLM generates invalid ZCQL (`CaseMasterID`, JOINs, LIKE, COUNT(*) ) — never produced a single valid query |
 | Ad-hoc JOINs | ❌ **ZCQL limitation** | No implicit JOINs; only Catalyst-defined relationships work (none configured for these tables) |
 
-### Recently Added (2026-07-13)
+### Recently Added (2026-07-15)
 
 | Feature | How It Works |
 |---------|-------------|
@@ -37,6 +37,10 @@
 | **Temporal filtering** | Regex for "this year", "last year", "2024 cases", "since 2024" → `WHERE CrimeRegisteredDate >= 'YYYY-01-01'` |
 | **Combined queries** | Crime type + location + status + temporal all AND-ed together (e.g., "theft cases in Bangalore in 2024") |
 | **Karnataka state-level** | `"karnataka"` mapped to `__all__` sentinel → no filter (all data is Karnataka) |
+| **GLM tool-calling (ADR-017)** | GLM receives `query_datastore` tool definition with typed params → returns structured tool call → `ToolExecutor` validates params against allow-list → builds valid ZCQL → executes → feeds result back to GLM for composition. `chat_handler.py` tries GLM first, falls back to regex pattern matcher if GLM is unavailable. |
+| **Tool executor** | `tool_executor.py` validates table (enum), columns, where conditions (op in `=,!=,>,<,>=,<=,IN`), group_by, order_by, limit. Builds valid ZCQL respecting constraints (no JOIN/LIKE/subquery). Resolves column aliases (`latitude`→`latitide`, `BriefFacts`→`BriedFacts`, `CaseCategoryID`→`CaeCategoryID`). |
+| **QuickML REST client** | `quickml_client.py` uses `Zoho-oauthtoken` auth (not `Bearer`), passes `tools`, `tool_choice`, `chat_template_kwargs` directly to the GLM API. Returns both `text` and `tool_calls` from responses. |
+| **SchemaRegistry** | `schema_registry.py` — full hardcoded schema map for all 26 tables (column names, types, descriptions). Drift-warns against actual Data Store on init. `generate_tool_def()` builds the `query_datastore` tool dynamically from the schema. `generate_system_prompt()` builds the system prompt with every table/column. `validate_tool_params()` checks column names against per-table schema — returns clear errors for invalid columns. Resolves aliases (`latitude`→`latitide`, `BriefFacts`→`BriedFacts`). |
 
 ---
 

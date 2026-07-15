@@ -1,0 +1,24 @@
+{
+  "cron": [
+    {
+      "name": "daily_alert_evaluation",
+      "description": "Evaluate early warning rules and generate alerts",
+      "cron": "0 7 * * *",
+      "target": "main.py",
+      "action": "get_alerts",
+      "params": {},
+      "timeout_seconds": 120,
+      "retry_count": 2
+    },
+    {
+      "name": "hourly_network_refresh",
+      "description": "Refresh community detection and network metrics",
+      "cron": "0 * * * *",
+      "target": "main.py",
+      "action": "get_network",
+      "params": {},
+      "timeout_seconds": 180,
+      "retry_count": 1
+    }
+  ]
+}

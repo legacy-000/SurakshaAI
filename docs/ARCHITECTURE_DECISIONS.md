@@ -1,6 +1,6 @@
 # Architecture Decisions and Delivery Roadmap
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 This document records the target architecture and the complete phased implementation plan for SURAKSHA AI. It is a design decision record, not evidence that a feature is implemented. A phase may be marked `COMPLETE` only after its listed acceptance criteria have been tested.
 
@@ -42,7 +42,7 @@ The Commander coordinates work; it does not directly execute SQL, calculate grap
 
 | Logical agent | Responsibility | Model role | Deterministic dependencies |
 |---|---|---|---|
-| Database Intelligence | Safe query planning and factual retrieval | GLM after validation is available | Schema registry, SQL policy, repository, Data Store |
+| Database Intelligence | Safe query planning and factual retrieval via structured tool calls | GLM (tool-calling mode, `tool_choice: "auto"`) | Schema registry (tool definitions → function schemas), ZCQL query builder (deterministic, converts tool params → valid ZCQL), row-scope injector, repository, Data Store |
 | Investigation Intelligence | Investigation gaps, task prioritization, stopping recommendation | Qwen | Mission State, Claim Ledger |
 | Entity Resolution | Candidate assessment without automatic merge | Qwen for difficult candidates | Normalization and similarity features |
 | Network Intelligence | Link analysis and graph interpretation | GLM/Qwen explanation only | Graph projection and algorithms |
@@ -105,16 +105,93 @@ flowchart TD
 | ADR-003 | Use `functions/suraksha_ai/` as the canonical initial Advanced I/O function. | PROPOSED | It is declared in the root manifest. The competing `suraksha-api` implementation must not be deployed until an explicit consolidation decision. |
 | ADR-004 | Implement the Commander as a coordinator plus registered worker capabilities. | ACCEPTED | It prevents a single model from acting as an unbounded autonomous worker and provides testable task boundaries. |
 | ADR-005 | Persist Mission State, Task DAG, Agent Registry, Claim Ledger, Evidence References, and execution provenance in Data Store. | PROPOSED | This gives missions resumability, evidence provenance, and bounded context retrieval. Table design must be verified against Data Store capabilities before creation. |
+| ADR-017 | GLM never generates raw ZCQL. Instead, GLM plans queries via structured **tool calls** with typed parameters (table, columns, filters, group by, order, limit). A deterministic executor validates the parameters against the schema allow-list and builds/runs the ZCQL. | ACCEPTED | Implemented in `tool_executor.py` and `chat_handler.py`. GLM receives `query_datastore` tool definition, returns structured calls, executor validates and builds valid ZCQL. Regex fallback in place. |
+| ADR-018 | GLM tool definitions are the **sole source of truth** for what the model can do. Every capability exposed to the model must have a corresponding tool definition with a typed schema, description, and deterministic backend implementation. | ACCEPTED | Only `query_datastore` tool is exposed. New capabilities must add tool definitions before GLM can invoke them. |
 | ADR-006 | Use Catalyst Job Scheduling/Function Job Pools for asynchronous worker dispatch unless a reviewed platform alternative is selected. | PROPOSED | Official Catalyst documentation supports Job Functions and job pools. The precise fan-out, retry, and callback design will be proven in a small spike before mission orchestration depends on it. |
 | ADR-007 | Use Catalyst Circuits only for static, repeatable orchestration patterns; keep dynamic mission DAG scheduling in application code. | PROPOSED | Circuits orchestrate sequential/concurrent functions, but Commander-generated dynamic plans require application-controlled state and scheduling. |
 | ADR-008 | Use Catalyst Authentication as the identity authority; do not mint application JWTs. | PROPOSED | Existing mock users and mock tokens cannot satisfy secure-access acceptance criteria. |
 | ADR-009 | Enforce authorization in the application layer, with API Gateway authentication/routing as outer control. | PROPOSED | Permission, row scope, column restrictions, and PII masking must be deterministic and cannot trust client-supplied context. |
 | ADR-010 | Use deterministic engines for queries, security, scoring, graphs, spatial analysis, forecasting, alerts, reports, and audit logs. | ACCEPTED | Models reason, plan, interpret, and compose; they do not execute or invent deterministic results. |
-| ADR-011 | Defer GLM/Qwen integration until model entitlement, model identifiers, supported SDK/API invocation, limits, and observability fields are verified in the Catalyst tenant. | ACCEPTED | Current QuickML clients contain unverified endpoint/SDK assumptions and hard-coded identifiers. |
+| ADR-011 | **UPDATED:** Use Catalyst QuickML GLM REST API directly (not the `zcatalyst_sdk` library) for all model calls — GLM chat, RAG, and tool-calling. | ACCEPTED | The `zcatalyst_sdk` QuickML wrapper is unreliable and undocumented for GLM. Verified endpoints: `POST /quickml/v1/project/{projectId}/glm/chat` (chat + tool calls) and `POST /quickml/v1/project/{projectId}/rag/answer` (RAG). Model: `crm-di-glm47b_30b_it`. Auth: `Zoho-oauthtoken` in `Authorization` header + `CATALYST-ORG` header. Supports `tools` array (typed function definitions), `tool_choice: "auto"`, and `chat_template_kwargs: { "enable_thinking": true }`. |
 | ADR-012 | Treat existing relational SQL schemas as logical reference designs, not Catalyst migrations. | ACCEPTED | Catalyst Data Store setup, relations, and data import must use verified console/CLI procedures. |
 | ADR-013 | Preserve existing user modifications during consolidation. | ACCEPTED | `STATUS.md` and `functions/suraksha_ai/common/chat/chat_handler.py` were already modified before this roadmap update. |
 
 Official platform references: [Data Store](https://docs.catalyst.zoho.com/en/cloud-scale/help/data-store/introduction/), [Job Functions](https://docs.catalyst.zoho.com/en/serverless/help/functions/job-functions/), [Circuits](https://docs.catalyst.zoho.com/en/serverless/help/circuits/introduction/), [Advanced I/O](https://docs.catalyst.zoho.com/en/serverless/help/functions/advanced-io/), and [CLI deployment options](https://docs.catalyst.zoho.com/en/cli/v1/deploy-resources/deploy-options/).
+
+### Verified GLM API
+
+**Chat + tool-calling:**
+`POST https://api.catalyst.zoho.in/quickml/v1/project/{projectId}/glm/chat`
+
+**RAG:**
+`POST https://api.catalyst.zoho.in/quickml/v1/project/{projectId}/rag/answer`
+
+| Field | Value |
+|---|---|
+| Project ID | `55029000000013055` |
+| Model | `crm-di-glm47b_30b_it` |
+| Auth header | `Authorization: Zoho-oauthtoken <access-token>` |
+| OAuth scope | `QuickML.rag.READ` |
+| Org header | `CATALYST-ORG: 60076341598` |
+| Content-Type | `application/json` |
+| Tool calling | `tools` array with typed `function` schemas; `tool_choice: "auto"` |
+| Streaming | `"stream": false` (default; streaming TBD) |
+| Thinking | `"chat_template_kwargs": { "enable_thinking": true }` |
+
+**Python reference:**
+```python
+import requests
+
+url = "https://api.catalyst.zoho.in/quickml/v1/project/55029000000013055/glm/chat"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_TOKEN",
+    "CATALYST-ORG": "60076341598"
+}
+data = {
+    "model": "crm-di-glm47b_30b_it",
+    "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "How many theft cases were registered in Bangalore?"}
+    ],
+    "max_tokens": 500,
+    "temperature": 0.1,
+    "stream": False,
+    "chat_template_kwargs": {"enable_thinking": True},
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "query_datastore",
+                "description": "Query the Catalyst Data Store using ZCQL",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "table": {"type": "string", "enum": ["CaseMaster", "CrimeSubHead", ...]},
+                        "columns": {"type": "array", "items": {"type": "string"}},
+                        "where": {"type": "array", "items": {...}}
+                    },
+                    "required": ["table", "columns"]
+                }
+            }
+        }
+    ],
+    "tool_choice": "auto"
+}
+response = requests.post(url, json=data, headers=headers)
+print(response.json())
+```
+
+**`zcatalyst_sdk` QuickML module is deprecated** — use the REST API directly as shown above. The SDK wrapper is unreliable for GLM tool-calling and lacks support for `tools`, `tool_choice`, and `chat_template_kwargs`.
+
+**ZCQL constraints (the executor must enforce):**
+- No `JOIN` — use two-step lookups or tool calls with sequential tool invocations
+- No `LIKE` — use exact `=` matching
+- No `COUNT(*)` — use `COUNT(ROWID)`
+- No subqueries — use `IN (...)` with literal IDs from prior lookups
+- No column aliases in `ORDER BY` / `HAVING`
+- No `HAVING` clause
+- No `UNION` / CTEs
 
 ## 3. Complete phased delivery plan
 
@@ -152,11 +229,20 @@ Official platform references: [Data Store](https://docs.catalyst.zoho.com/en/clo
 
 ### Phase 4 — Database Intelligence vertical slice
 
-**Objective:** provide evidence-backed natural-language data answers.
+**Objective:** provide evidence-backed natural-language data answers using GLM tool-calling.
 
-**Implement:** GLM router only after model verification; schema retrieval; structured query planning; select-only parser/validator; table/column allow-list; row-scope injection; cost/limit policy; query executor; evidence references; Database Mode UI and SQL viewer.
+**Implement:**
 
-**Acceptance:** an officer obtains a validated answer, table, permitted SQL, evidence references, and data-quality warnings. The model never directly accesses Data Store.
+1. **Tool definitions** — Define `query_datastore` as a typed GLM tool function with parameters: `table` (enum of allowed tables), `columns` (array of allowed column names), `where` (array of `{column, operator, value}`), `group_by` (optional column), `order_by` (optional `{column, direction}`), `limit` (integer, capped at 1000). Each parameter has a description and type schema.
+2. **GLM router** — Calls `POST /quickml/v1/project/{projectId}/glm/chat` with `tools: [query_datastore_def]`, `tool_choice: "auto"`, and the schema registry context in the system message. GLM returns a structured `tool_call` — not raw SQL.
+3. **Deterministic executor** — Validates the tool call parameters against the table/column allow-list and row-scope policy. Builds valid ZCQL from the structured params. Executes via `execute_non_query`. Returns results (or error) to GLM for the follow-up response.
+4. **Fallback** — If GLM doesn't call the tool (e.g., greeting), respond directly. If the tool call is invalid, return a clear validation error. If GLM is unavailable, the existing regex-pattern matcher (built in Phase 2) serves as the hard fallback.
+5. **Schema registry** — Tool definitions are generated dynamically from the schema registry (table list, column list with types/descriptions) so the model knows what's queryable.
+6. **UI** — Database Mode showing the generated ZCQL, tool call parameters, evidence references, and data-quality warnings.
+
+**Acceptance:** an officer obtains a validated answer, the generated ZCQL, tool call parameters (visible), evidence references, and data-quality warnings. The model never directly accesses Data Store — it produces tool calls that the deterministic executor runs. The fallback pattern matcher still works if the model is unreachable.
+
+**Note:** Phase 2's regex-pattern matcher (`chat_handler.py`) remains the active runtime query planner until this phase is implemented and tested. Phase 4 replaces it.
 
 ### Phase 5 — AI governance foundation
 
@@ -260,7 +346,7 @@ Official platform references: [Data Store](https://docs.catalyst.zoho.com/en/clo
 |---|---:|---|
 | Any protected officer request | 1–3 | Verified Catalyst project/function/client, Authentication, request context |
 | Trustworthy case retrieval | 2 | Data Store schema, import, repositories, data-quality checks |
-| AI-assisted database questions | 4 | Security foundation, schema registry, verified model contract |
+| AI-assisted database questions | 4 | Security foundation, schema registry, verified GLM tool-calling API contract (ADR-017) |
 | Persistent mission orchestration | 5–6 | State/claim contracts, task dispatch spike, worker result envelope |
 | Entity/network/offender intelligence | 8–9 | Source data, identity policy, evidence model |
 | Forecasts and alerts | 11–12 | Sufficient time series, backtesting, scheduled jobs |
