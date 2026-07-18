@@ -8,6 +8,7 @@ from functions.analytics.hotspot_detector import HotspotDetector
 from models.dto import LoginRequestDTO, QueryRequestDTO, EntityResolutionRequestDTO, \
     CrimeTrendRequestDTO, ForecastRequestDTO, HotspotRequestDTO, UserContextDTO
 
+
 def test_full_investigator_journey():
     auth = AuthHandler()
     login = auth.login(LoginRequestDTO(kgid="INV001", password="test"))
@@ -27,6 +28,7 @@ def test_full_investigator_journey():
     scorer = PriorityScorer()
     score = scorer.calculate_score("ent_test", "Ravi Kumar")
     assert score.risk_tier in ["LOW", "MODERATE", "ELEVATED", "HIGH"]
+
 
 def test_analyst_journey():
     trend = TrendAnalyzer()

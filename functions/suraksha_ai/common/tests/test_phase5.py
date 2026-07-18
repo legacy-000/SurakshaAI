@@ -1,22 +1,29 @@
 """Self-check tests for Phase 5 — Investigation Suite."""
 
-import sys, os, json
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, BASE)
-os.environ.setdefault("PYTHONPATH", BASE)
-
-from investigation.investigation_manager import InvestigationManager
-from investigation.similarity_engine import SimilarityEngine
-from investigation.timeline_generator import TimelineGenerator
-from investigation.lead_generator import LeadGenerator
-from investigation.report_generator import ReportGenerator
+from comms.group_manager import GroupManager
+from comms.permission_engine import PermissionEngine
+from comms.message_engine import MessageEngine
 from governance.governance import (
     ModelRegistry, PromptRegistry, AgentCapabilityRegistry,
     AgentExecutionTracker, MissionTracker, ClaimLedger,
 )
-from comms.message_engine import MessageEngine
-from comms.permission_engine import PermissionEngine
-from comms.group_manager import GroupManager
+from investigation.report_generator import ReportGenerator
+from investigation.lead_generator import LeadGenerator
+from investigation.timeline_generator import TimelineGenerator
+from investigation.similarity_engine import SimilarityEngine
+from investigation.investigation_manager import InvestigationManager
+import sys
+import os
+import tempfile
+BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, BASE)
+os.environ.setdefault("PYTHONPATH", BASE)
+
+# ponytail: clear persisted state from prior runs so each test starts clean
+for _f in ('suraksha_governance.json', 'suraksha_investigations.json'):
+    _p = os.path.join(tempfile.gettempdir(), _f)
+    if os.path.exists(_p):
+        os.remove(_p)
 
 
 def test_investigation_create():
@@ -127,23 +134,23 @@ def test_lead_generator():
     lg = LeadGenerator()
     leads = lg.generate_leads(101)
     assert len(leads) == 3
-    types = {l.lead_type for l in leads}
+    types = {lead.lead_type for lead in leads}
     assert "co_accused_link" in types
     assert "location_pattern" in types
     assert "witness_lead" in types
-    for l in leads:
-        assert l.lead_id is not None
-        assert 0.0 <= l.confidence_score <= 1.0
-        assert l.confidence_class in ("high", "medium", "low")
-        assert len(l.supporting_evidence) > 0
+    for lead in leads:
+        assert lead.lead_id is not None
+        assert 0.0 <= lead.confidence_score <= 1.0
+        assert lead.confidence_class in ("high", "medium", "low")
+        assert len(lead.supporting_evidence) > 0
     print("  PASS: lead_generator")
 
 
 def test_lead_confidence_range():
     lg = LeadGenerator()
     leads = lg.generate_leads(55)
-    for l in leads:
-        assert 0.0 <= l.confidence_score <= 1.0
+    for lead in leads:
+        assert 0.0 <= lead.confidence_score <= 1.0
     print("  PASS: lead_confidence_range")
 
 
@@ -162,7 +169,8 @@ def test_investigation_roundtrip():
     inv = mgr.create("Roundtrip", "", "u1")
     mgr.add_case(inv.investigation_id, 201, "case one")
     mgr.add_case(inv.investigation_id, 202, "case two")
-    mgr.add_graph(inv.investigation_id, {"nodes": [{"id": "n1"}, {"id": "n2"}], "edges": [{"source": "n1", "target": "n2"}]}, "graph A")
+    mgr.add_graph(inv.investigation_id, {"nodes": [{"id": "n1"}, {"id": "n2"}], "edges": [
+                  {"source": "n1", "target": "n2"}]}, "graph A")
     output = mgr.get(inv.investigation_id)
     assert len(output["cases"]) == 2
     assert len(output["graphs"]) == 1
@@ -175,8 +183,8 @@ def test_investigation_roundtrip():
 def test_message_send():
     eng = MessageEngine()
     msg = eng.send("STATUS_UPDATE", 1, "IO", 1, "South Station",
-                    [2, 3], "Subject", "Body", cc_ids=[4],
-                    priority="HIGH")
+                   [2, 3], "Subject", "Body", cc_ids=[4],
+                   priority="HIGH")
     assert msg.message_id is not None
     assert msg.type == "STATUS_UPDATE"
     assert msg.sender.employee_id == 1
@@ -191,9 +199,9 @@ def test_message_send():
 def test_message_inbox():
     eng = MessageEngine()
     eng.send("CASE_ASSIGNMENT", 1, "SHO", 1, "Station",
-              [5], "Case assigned", "Details")
+             [5], "Case assigned", "Details")
     eng.send("STATUS_UPDATE", 2, "IO", 1, "Station",
-              [1], "Update", "Progress", priority="HIGH")
+             [1], "Update", "Progress", priority="HIGH")
     inbox = eng.list_inbox(1)
     assert len(inbox) >= 1
     high = eng.list_inbox(1, priority_filter="HIGH")
@@ -204,10 +212,10 @@ def test_message_inbox():
 def test_message_thread():
     eng = MessageEngine()
     parent = eng.send("APPROVAL_REQUEST", 1, "IO", 1, "Station",
-                       [2], "Review", "Please review")
+                      [2], "Review", "Please review")
     reply = eng.send("APPROVAL_REQUEST", 2, "SHO", 1, "Station",
-                      [1], "Re: Review", "Approved",
-                      parent_message_id=parent.message_id)
+                     [1], "Re: Review", "Approved",
+                     parent_message_id=parent.message_id)
     thread = eng.get_thread(reply.message_id)
     assert len(thread) == 2
     print("  PASS: message_thread")
@@ -216,7 +224,7 @@ def test_message_thread():
 def test_message_ack():
     eng = MessageEngine()
     msg = eng.send("CRITICAL_ALERT", 1, "DSP", 1, "District",
-                    [2], "Alert", "Emergency", priority="CRITICAL")
+                   [2], "Alert", "Emergency", priority="CRITICAL")
     assert eng.acknowledge(msg.message_id, 2)
     assert eng.get(msg.message_id).status == "ACKNOWLEDGED"
     assert eng.mark_read(msg.message_id, 2)
@@ -239,7 +247,7 @@ def test_permission_check():
 def test_permission_delegation():
     pe = PermissionEngine()
     d = pe.delegate(1, 2, "APPROVE_CHARGESHEET", "own_station",
-                     reason="SHO on leave")
+                    reason="SHO on leave")
     assert d.status == "active"
     assert pe.has_delegation(2, "APPROVE_CHARGESHEET") is not None
     assert pe.has_delegation(3, "APPROVE_CHARGESHEET") is None
@@ -275,8 +283,8 @@ def test_org_group():
 def test_dynamic_group():
     gm = GroupManager()
     g = gm.create_dynamic_group("Theft Task Force", "TASK_FORCE",
-                                 lead_id=1, case_ids=[101, 102],
-                                 duration_days=60)
+                                lead_id=1, case_ids=[101, 102],
+                                duration_days=60)
     assert g.group_name == "Theft Task Force"
     assert len(g.linked_case_ids) == 2
     assert g.dissolve_at is not None
@@ -307,8 +315,8 @@ def test_group_members():
 def test_coordination():
     gm = GroupManager()
     req = gm.create_coordination(1, 2, "SUSPECT_LOCATION",
-                                  "Suspect sighted", "Details at...",
-                                  case_id=101)
+                                 "Suspect sighted", "Details at...",
+                                 case_id=101)
     assert req.request_type == "SUSPECT_LOCATION"
     assert req.linked_case_id == 101
     assert gm.update_coordination(req.request_id, "approved", assigned_to=3)

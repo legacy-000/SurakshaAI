@@ -417,3 +417,101 @@ CREATE TABLE IF NOT EXISTS UserFeedback (
     comment TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ── Phase 5 — AI Governance (Gov* prefix) ────────────────────────────
+-- Append-only durable mirror of in-memory registries in
+-- functions/suraksha_ai/common/governance/governance.py.
+-- State changes persist a fresh full row; cold-start hydrate keeps the
+-- row with the highest ROWID per logical key. JSON columns are TEXT;
+-- catalyst.json does not declare table schemas — this file is canonical.
+
+CREATE TABLE IF NOT EXISTS GovModel (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    ModelId VARCHAR(36) NOT NULL,
+    ModelName VARCHAR(100) NOT NULL,
+    ModelVersion VARCHAR(50) NOT NULL,
+    Provider VARCHAR(100),
+    CapabilitiesJson TEXT,
+    ParametersJson TEXT,
+    RegisteredAt VARCHAR(40)
+);
+
+CREATE TABLE IF NOT EXISTS GovPrompt (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    PromptId VARCHAR(36) NOT NULL,
+    PromptName VARCHAR(100) NOT NULL,
+    Template TEXT,
+    PromptVersion VARCHAR(50),
+    ModelId VARCHAR(36),
+    CreatedAt VARCHAR(40)
+);
+
+CREATE TABLE IF NOT EXISTS GovAgentCapability (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    AgentName VARCHAR(100) NOT NULL,
+    CapabilitiesJson TEXT,
+    Description TEXT,
+    RequiredPermissionsJson TEXT,
+    UpdatedAt VARCHAR(40)
+);
+
+CREATE TABLE IF NOT EXISTS GovExecution (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    ExecutionId VARCHAR(36) NOT NULL,
+    MissionId VARCHAR(36),
+    AgentName VARCHAR(100),
+    Intent VARCHAR(100),
+    InputQuery TEXT,
+    StartedAt VARCHAR(40),
+    CompletedAt VARCHAR(40),
+    Status VARCHAR(20),
+    OutputSummary TEXT,
+    EvidenceIdsJson TEXT,
+    Error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS GovMission (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    MissionId VARCHAR(36) NOT NULL,
+    Query TEXT,
+    UserId VARCHAR(50),
+    IntentsJson TEXT,
+    Status VARCHAR(20),
+    Summary TEXT,
+    CreatedAt VARCHAR(40),
+    CompletedAt VARCHAR(40),
+    DetailsJson TEXT
+);
+
+CREATE TABLE IF NOT EXISTS GovMissionTask (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    TaskId VARCHAR(36) NOT NULL,
+    MissionId VARCHAR(36) NOT NULL,
+    AgentName VARCHAR(100),
+    Intent VARCHAR(100),
+    InputQuery TEXT,
+    Status VARCHAR(20),
+    StartedAt VARCHAR(40),
+    CompletedAt VARCHAR(40),
+    ResultJson TEXT,
+    EvidenceJson TEXT,
+    Error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS GovClaim (
+    ROWID INT AUTO_INCREMENT PRIMARY KEY,
+    ClaimId VARCHAR(36) NOT NULL,
+    Statement TEXT,
+    Classification VARCHAR(50),
+    Producer VARCHAR(100),
+    ModelVersion VARCHAR(50),
+    EvidenceRefsJson TEXT,
+    Confidence DECIMAL(5,4),
+    ConfidenceLabel VARCHAR(10),
+    ValidationStatus VARCHAR(50),
+    GrantedAt VARCHAR(40),
+    ExpiresAt VARCHAR(40),
+    Status VARCHAR(50),
+    SourceExecutionId VARCHAR(36),
+    ClaimMetadataJson TEXT
+);

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "platform": "Catalyst",
+  "purpose": "Bulk-create the 5 precomputed-result tables used by the analytics_cron function.",
+  "tables": [
+    {
+      "segmeta": "",
+      "table_name": "TrendSnapshot",
+      "table_id": "",
+      "columns": [
+        { "column_name": "ROWID",   "column_id": "", "data_type": "int",          "is_mandatory": false, "is_unique": true, "show_in_ui": false },
+        { "column_name": "SnapshotKey", "column_id": "", "data_type": "varchar",  "max_length": 256,    "is_mandatory": true, "show_in_ui": true },
+        { "column_name": "Payload",     "column_id": "", "data_type": "clob",     "is_mandatory": true, "show_in_ui": false },
+        { "column_name": "UpdatedAt",   "column_id": "", "data_type": "datetime",  "is_mandatory": true, "show_in_ui": true }
+      ]
+    },
+    {
+      "segmeta": "",
+      "table_name": "HotspotSnapshot",
+      "table_id": "",
+      "columns": [
+        { "column_name": "ROWID",   "column_id": "", "data_type": "int",         "is_mandatory": false, "is_unique": true, "show_in_ui": false },
+        { "column_name": "SnapshotKey", "column_id": "", "data_type": "varchar", "max_length": 256,    "is_mandatory": true, "show_in_ui": true },
+        { "column_name": "Payload",     "column_id": "", "data_type": "clob",    "is_mandatory": true, "show_in_ui": false },
+        { "column_name": "UpdatedAt",   "column_id": "", "data_type": "datetime","is_mandatory": true, "show_in_ui": true }
+      ]
+    },
+    {
+      "segmeta": "",
+      "table_name": "ForecastResult",
+      "table_id": "",
+      "columns": [
+        { "column_name": "ROWID",   "column_id": "", "data_type": "int",         "is_mandatory": false, "is_unique": true, "show_in_ui": false },
+        { "column_name": "SnapshotKey", "column_id": "", "data_type": "varchar", "max_length": 256,    "is_mandatory": true, "show_in_ui": true },
+        { "column_name": "Payload",     "column_id": "", "data_type": "clob",    "is_mandatory": true, "show_in_ui": false },
+        { "column_name": "UpdatedAt",   "column_id": "", "data_type": "datetime","is_mandatory": true, "show_in_ui": true }
+      ]
+    },
+    {
+      "segmeta": "",
+      "table_name": "ResolvedEntity",
+      "table_id": "",
+      "columns": [
+        { "column_name": "ROWID",   "column_id": "", "data_type": "int",         "is_mandatory": false, "is_unique": true, "show_in_ui": false },
+        { "column_name": "SnapshotKey", "column_id": "", "data_type": "varchar", "max_length": 256,    "is_mandatory": true, "show_in_ui": true },
+        { "column_name": "Payload",     "column_id": "", "data_type": "clob",    "is_mandatory": true, "show_in_ui": false },
+        { "column_name": "UpdatedAt",   "column_id": "", "data_type": "datetime","is_mandatory": true, "show_in_ui": true }
+      ]
+    },
+    {
+      "segmeta": "",
+      "table_name": "IPSScore",
+      "table_id": "",
+      "columns": [
+        { "column_name": "ROWID",   "column_id": "", "data_type": "int",         "is_mandatory": false, "is_unique": true, "show_in_ui": false },
+        { "column_name": "SnapshotKey", "column_id": "", "data_type": "varchar", "max_length": 256,    "is_mandatory": true, "show_in_ui": true },
+        { "column_name": "Payload",     "column_id": "", "data_type": "clob",    "is_mandatory": true, "show_in_ui": false },
+        { "column_name": "UpdatedAt",   "column_id": "", "data_type": "datetime","is_mandatory": true, "show_in_ui": true }
+      ]
+    }
+  ]
+}

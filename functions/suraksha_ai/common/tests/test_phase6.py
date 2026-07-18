@@ -1,14 +1,14 @@
 """Self-check tests for Phase 6 — Technical Support Engineer Role."""
 
-import sys, os
+from support.tse_handler import TSEHandler
+from security.rbac_middleware import RBACMiddleware, CASE_DATA_TABLES
+from auth.auth_handler import AuthHandler
+from models.dto import UserContextDTO, LoginRequestDTO
+import sys
+import os
 BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, BASE)
 os.environ.setdefault("PYTHONPATH", BASE)
-
-from models.dto import UserContextDTO, LoginRequestDTO
-from auth.auth_handler import AuthHandler
-from security.rbac_middleware import RBACMiddleware, CASE_DATA_TABLES
-from support.tse_handler import TSEHandler
 
 
 def test_tse_auth_login():

@@ -1,5 +1,6 @@
-import logging, random, math
-from typing import Optional
+import logging
+import random
+import math
 from models.dto import SimilarCaseDTO
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,14 @@ class SimilarityEngine:
         if self._db and self._db.is_connected:
             try:
                 res = self._db.execute_non_query(
-                    f"SELECT CrimeNo, CrimeSubHead, BriedFacts FROM FirMaster WHERE CaseMasterID={case_master_id}"
+                    "SELECT CrimeNo, CrimeMinorHeadID, BriefFacts "
+                    f"FROM CaseMaster WHERE CaseMasterID={int(case_master_id)} LIMIT 1"
                 )
                 if res.get("rows"):
                     row = dict(zip(res["columns"], res["rows"][0]))
-                    query_text = f"{row.get('CrimeSubHead','')} {row.get('BriedFacts','')}"
+                    facts = row.get("BriefFacts") or row.get("BriedFacts") or ""
+                    crime_type = row.get("CrimeSubHead") or row.get("CrimeMinorHeadID") or ""
+                    query_text = f"{crime_type} {facts}"
             except Exception as e:
                 logger.warning("Failed to load case data for embedding: %s", e)
 

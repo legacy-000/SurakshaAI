@@ -48,9 +48,9 @@ export const Sidebar: React.FC = () => {
           <div style={{ fontSize: 13, fontWeight: 500 }}>{user?.first_name}</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user?.role_name}</div>
         </div>
-        <button className={`nav-item ${lang === 'kn' ? 'active' : ''}`} onClick={toggleLang}>
+        <button className={`nav-item ${lang !== 'en' ? 'active' : ''}`} onClick={toggleLang}>
           <Languages size={20} />
-          <span>{lang === 'en' ? 'ಕನ್ನಡ' : 'English'}</span>
+          <span>{lang === 'en' ? 'English' : lang === 'kn' ? 'ಕನ್ನಡ' : 'हिंदी'}</span>
         </button>
         <button className="nav-item" onClick={toggleTheme}>
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}

@@ -1,4 +1,3 @@
-import re
 from common.ai.quickml_client import QuickMLClient
 from common.ai.rag_retriever import SchemaRAGRetriever
 from common.sql.sql_validator import SQLValidator
@@ -52,7 +51,10 @@ class NL2SQLEngine:
         text = result.get("text", "")
         sql_text = self._extract_sql(text)
         if not sql_text.strip():
-            return {"error": "SQLGEN_EMPTY", "message": f"Model returned empty SQL. Raw: {text[:200]}", "raw_response": text}
+            return {
+                "error": "SQLGEN_EMPTY",
+                "message": f"Model returned empty SQL. Raw: {text[:200]}",
+                "raw_response": text}
 
         validation = self.validator.validate(sql_text)
         if not validation.get("is_valid", False):
@@ -92,10 +94,11 @@ class NL2SQLEngine:
 
     def _extract_sql(self, text: str) -> str:
         clean = text.replace("```sql", "").replace("```SQL", "").replace("```", "").strip()
-        lines = [l for l in clean.split("\n") if l.strip().upper().startswith("SELECT") or l.strip().upper().startswith("WITH")]
+        lines = [ln for ln in clean.split("\n") if ln.strip().upper().startswith("SELECT")
+                 or ln.strip().upper().startswith("WITH")]
         if lines:
             return lines[0].strip()
-        for l in clean.split("\n"):
-            if "SELECT" in l.upper():
-                return l.strip()
+        for ln in clean.split("\n"):
+            if "SELECT" in ln.upper():
+                return ln.strip()
         return clean.split("\n")[0].strip()

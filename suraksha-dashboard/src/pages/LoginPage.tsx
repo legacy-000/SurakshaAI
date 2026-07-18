@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -9,6 +9,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,8 +42,17 @@ export const LoginPage: React.FC = () => {
           </div>
           <div className="form-group">
             <label>Password</label>
-            <input className="input" type="password" placeholder="Enter your password"
-              value={password} onChange={e => setPassword(e.target.value)} required />
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPassword ? 'text' : 'password'} placeholder="Enter your password"
+                value={password} onChange={e => setPassword(e.target.value)} required
+                style={{ width: '100%', paddingRight: 44 }} />
+              <button type="button" onClick={() => setShowPassword(s => !s)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)' }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
@@ -54,7 +64,7 @@ export const LoginPage: React.FC = () => {
 
         <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
           <p>Demo credentials: INV001 / ANL001 / SUP001</p>
-          <p style={{ marginTop: 4 }}>Password: test</p>
+          <p style={{ marginTop: 4 }}>Password: pass123</p>
         </div>
       </div>
     </div>

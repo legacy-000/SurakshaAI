@@ -1,6 +1,5 @@
 from typing import Any, Optional
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, Field
 
 
 class LoginRequestDTO(BaseModel):
@@ -223,6 +222,10 @@ class EarlyWarningAlertDTO(BaseModel):
     district_id: Optional[int] = None
     evidence: list[dict[str, Any]] = []
     created_at: str = ""
+
+
+class EntityResolutionRequestDTO(BaseModel):
+    accused_name: str
 
 
 class DashboardStatsDTO(BaseModel):
@@ -486,6 +489,11 @@ class CoordinationRequestDTO(BaseModel):
     assigned_to_employee_id: Optional[int] = None
 
 
+class HealthCheckDTO(BaseModel):
+    status: str = "healthy"
+    version: str = "1.0.0"
+
+
 class AuditLogEntryDTO(BaseModel):
     entry_id: str
     timestamp: str
@@ -497,3 +505,171 @@ class AuditLogEntryDTO(BaseModel):
     resource_id: str = ""
     detail: str = ""
     result: str = "success"
+
+
+# --- Legacy-layout DTOs re-exported for back-compat (functions/* layout).
+
+class AuthorizationScopeDTO(BaseModel):
+    user_id: str
+    role_id: int
+    permitted_apis: list[str] = []
+    permitted_screens: list[str] = []
+    permitted_tables: list[str] = []
+    can_view_sql: bool = False
+    can_export_pdf: bool = True
+    can_view_pii: bool = False
+    row_scope_type: Optional[str] = None
+    row_scope_value: Optional[int] = None
+
+
+class RawQueryDTO(BaseModel):
+    message: str
+    lang: str = "en"
+    conversation_id: Optional[str] = None
+    requested_format: str = "auto"
+
+
+class DetectedLanguageDTO(BaseModel):
+    language_code: str = "en"
+    confidence: float = 1.0
+
+
+class NormalizedQueryDTO(BaseModel):
+    original_text: str
+    normalized_text: str
+    language_code: str = "en"
+
+
+class ExtractedEntityDTO(BaseModel):
+    entity_type: str
+    entity_value: str
+    confidence: float = 1.0
+
+
+class IntentResultDTO(BaseModel):
+    intent_type: str = "DATA_QUERY"
+    confidence: float = 1.0
+
+
+class RetrievedSchemaContextDTO(BaseModel):
+    table_descriptions: list[dict[str, Any]] = []
+    column_descriptions: list[dict[str, Any]] = []
+
+
+class QueryPlanDTO(BaseModel):
+    tables: list[str] = []
+    joins: list[dict[str, str]] = []
+    filters: list[dict[str, Any]] = []
+    aggregations: list[dict[str, str]] = []
+    order_by: Optional[str] = None
+    limit: Optional[int] = None
+
+
+class GeneratedSQLDTO(BaseModel):
+    query_plan: QueryPlanDTO
+    sql_text: str
+    model_version: str = "quickml-llama-3.1-70b-v1"
+    prompt_version: str = "nl2sql-v2.1"
+
+
+class SQLValidationResultDTO(BaseModel):
+    is_valid: bool = True
+    validated_sql: str = ""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+
+class SecuredSQLDTO(BaseModel):
+    sql_text: str
+    max_rows: int = 1000
+    timeout_seconds: int = 30
+
+
+class QueryExecutionResultDTO(BaseModel):
+    query_id: str
+    sql_text: str
+    execution_status: str = "success"
+    row_count: int = 0
+    columns: list[str] = []
+    rows: list[list[Any]] = []
+    execution_time_ms: int = 0
+    error_code: Optional[str] = None
+
+
+class FormattedResultDTO(BaseModel):
+    query_id: str
+    execution_result: QueryExecutionResultDTO
+    evidence: list[EvidenceReferenceDTO] = []
+
+
+class SociologicalAnalysisRequestDTO(BaseModel):
+    person_type: str = "complainant"
+    group_by_fields: list[str] = []
+    filters: dict[str, Any] = {}
+
+
+class SociologicalAnalysisResultDTO(BaseModel):
+    query_id: str
+    distributions: list[dict[str, Any]] = []
+    sample_size: int = 0
+    missing_data_pct: float = 0.0
+    suppressed_groups: int = 0
+    privacy_note: str = ""
+
+
+class GraphAnalyticsResultDTO(BaseModel):
+    run_id: str
+    communities: list[dict[str, Any]] = []
+    centrality: dict[str, Any] = {}
+    community_note: str = ""
+
+
+class CaseSummaryDTO(BaseModel):
+    case_master_id: int
+    crime_no: Optional[str] = None
+    crime_registered_date: Optional[str] = None
+    brief_facts_summary: Optional[str] = None
+    crime_category: Optional[str] = None
+    gravity_offence: Optional[str] = None
+    crime_head: Optional[str] = None
+    crime_sub_head: Optional[str] = None
+    case_status: Optional[str] = None
+    police_station: Optional[str] = None
+    district: Optional[str] = None
+    evidence_refs: list[EvidenceReferenceDTO] = []
+
+
+class FinancialAnalysisResultDTO(BaseModel):
+    data_available: bool = False
+    schema_source: str = "KSP FIR Schema"
+    missing_datasets: list[str] = []
+    message: str = ""
+    synthetic_demo_available: bool = True
+    synthetic_data_label: str = "DEMONSTRATION DATA ONLY - NOT REAL KSP RECORDS"
+
+
+class AuditEventDTO(BaseModel):
+    audit_id: str
+    timestamp: str
+    trace_id: str
+    user_id: str
+    action: str
+    resource_type: str
+    resource_id: Optional[str] = None
+    outcome: str
+    error_code: Optional[str] = None
+    client_ip: Optional[str] = None
+    request_duration_ms: Optional[int] = None
+
+
+class FeedbackDTO(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
+class ConversationDTO(BaseModel):
+    conversation_id: str
+    title: str
+    language_code: str = "en"
+    created_at: str = ""
+    is_archived: bool = False

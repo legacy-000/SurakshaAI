@@ -1,4 +1,5 @@
-import json
+import time
+import threading
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,26 +14,69 @@ class QuickMLClient:
     def __init__(self, catalyst_app=None):
         self._catalyst_app = catalyst_app
         self.model_id = GLM_MODEL_ID
+        self._cached_token = None
+        self._token_expiry = 0.0
+        self._token_lock = threading.Lock()
+        self._refresh_thread_started = False
+
+        if self._catalyst_app:
+            self._start_refresh_thread()
 
     @property
     def is_available(self):
         return self._catalyst_app is not None
 
-    def _get_access_token(self) -> str:
+    def _start_refresh_thread(self):
+        with self._token_lock:
+            if self._refresh_thread_started:
+                return
+            self._refresh_thread_started = True
+            t = threading.Thread(target=self._auto_refresh_loop, daemon=True, name="quickml_token_refresh")
+            t.start()
+
+    def _auto_refresh_loop(self):
+        while True:
+            try:
+                # Standard Zoho OAuth token is valid for 1 hour. Refresh 5 minutes before (55 mins = 3300s).
+                time.sleep(3300)
+                logger.info("Initiating background refresh of Zoho OAuth token...")
+                self._get_access_token(force_refresh=True)
+            except Exception as e:
+                logger.warning("Background token auto-refresh encountered error: %s", e)
+                time.sleep(60)
+
+    def _get_access_token(self, force_refresh: bool = False) -> str:
         if not self._catalyst_app:
             return ""
-        try:
-            cred = self._catalyst_app.credential
-            if not cred:
-                return ""
-            token_res = cred.token()
-            if isinstance(token_res, tuple):
-                if len(token_res) > 1:
-                    return token_res[1]
-                return token_res[0]
-            return str(token_res)
-        except Exception as e:
-            logger.error("Failed to get Catalyst access token: %s", e)
+
+        with self._token_lock:
+            now = time.time()
+            if self._cached_token and now < self._token_expiry and not force_refresh:
+                return self._cached_token
+
+            try:
+                cred = self._catalyst_app.credential
+                if not cred:
+                    return ""
+                token_res = cred.token()
+                token_str = ""
+                if isinstance(token_res, tuple):
+                    if len(token_res) > 1:
+                        token_str = token_res[1]
+                    else:
+                        token_str = token_res[0]
+                else:
+                    token_str = str(token_res)
+
+                if token_str:
+                    self._cached_token = token_str
+                    self._token_expiry = now + 3600  # Token typically valid for 1 hour
+                    return token_str
+            except Exception as e:
+                logger.error("Failed to get Catalyst access token: %s", e)
+                if self._cached_token:
+                    logger.warning("Graceful degradation: using expired cached token")
+                    return self._cached_token
             return ""
 
     def chat(self, messages: list[dict], temperature: float = 0.1,

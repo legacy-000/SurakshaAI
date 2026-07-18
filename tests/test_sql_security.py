@@ -18,10 +18,12 @@ MALICIOUS_INPUTS = [
     "1' HAVING 1=1--",
 ]
 
+
 def test_sql_injection_detection():
     detector = InjectionDetector()
     for inp in MALICIOUS_INPUTS:
         assert detector.detect_sql_injection(inp), f"Failed to detect: {inp}"
+
 
 def test_prompt_injection_detection():
     detector = InjectionDetector()

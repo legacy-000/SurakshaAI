@@ -222,7 +222,15 @@ class SchemaRegistry:
                         d = c.to_dict() if hasattr(c, 'to_dict') else c
                         name = d.get("column_name", "")
                         col_type = d.get("column_type", "VARCHAR")
-                        actual_cols[name] = {"type": col_type, "desc": self._schema.get(table_name, {}).get(name, {}).get("desc", f"Column from {table_name}")}
+                        actual_cols[name] = {
+                            "type": col_type,
+                            "desc": self._schema.get(
+                                table_name,
+                                {}).get(
+                                name,
+                                {}).get(
+                                "desc",
+                                f"Column from {table_name}")}
                     if actual_cols:
                         self._schema[table_name] = actual_cols
                 except Exception:
@@ -230,7 +238,7 @@ class SchemaRegistry:
 
             # Discover any new tables not in the static schema
             try:
-                res = catalyst_app.zcql().execute_query("SELECT * FROM District LIMIT 1")
+                catalyst_app.zcql().execute_query("SELECT * FROM District LIMIT 1")
                 # ZCQL doesn't provide list_tables; spot-check by known tables
                 logger.info("Schema loaded dynamically from Data Store for %d tables", len(self._schema))
             except Exception:
@@ -350,7 +358,7 @@ class SchemaRegistry:
         return "\n".join(lines)
 
     def validate_columns(self, table: str, columns: list[str]) -> list[str]:
-        valid = set(self._schema.get(table, {}).keys()) | set(self._column_aliases.keys())
+        set(self._schema.get(table, {}).keys()) | set(self._column_aliases.keys())
         bad = []
         for c in columns:
             resolved = self._column_aliases.get(c, c)
@@ -391,13 +399,15 @@ class SchemaRegistry:
                     errors.append(f"where[{i}] operator '{cond.get('operator')}' not allowed")
 
         group_by = params.get("group_by")
-        if group_by and table and table in self._schema and group_by not in self._schema[table] and self._column_aliases.get(group_by) not in self._schema[table]:
+        if group_by and table and table in self._schema and group_by not in self._schema[table] and self._column_aliases.get(
+                group_by) not in self._schema[table]:
             errors.append(f"group_by column '{group_by}' not in {table}")
 
         order_by = params.get("order_by")
         if order_by and isinstance(order_by, dict):
             col = order_by.get("column", "")
-            if col and table and table in self._schema and col not in self._schema[table] and self._column_aliases.get(col) not in self._schema[table]:
+            if col and table and table in self._schema and col not in self._schema[table] and self._column_aliases.get(
+                    col) not in self._schema[table]:
                 errors.append(f"order_by column '{col}' not in {table}")
 
         limit = params.get("limit", 50)

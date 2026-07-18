@@ -1,4 +1,5 @@
-import json, uuid
+import json
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from models.dto import OrgGroupDTO, DynamicGroupDTO, DynamicGroupMemberDTO, CoordinationRequestDTO
@@ -29,7 +30,8 @@ class GroupManager:
                     if table == self._dg_table:
                         d["linked_case_ids"] = json.loads(d.get("linked_case_ids_json", "[]"))
                         d["linked_offender_ids"] = json.loads(d.get("linked_offender_ids_json", "[]"))
-                        d.pop("linked_case_ids_json", None); d.pop("linked_offender_ids_json", None)
+                        d.pop("linked_case_ids_json", None)
+                        d.pop("linked_offender_ids_json", None)
                         g = DynamicGroupDTO(**d)
                         self._dynamic_groups[g.group_id] = g
                     elif table == self._gm_table:
@@ -42,7 +44,8 @@ class GroupManager:
 
     # ── OrgGroup ──────────────────────────────────────────────────────
     def create_org_group(self, name: str, group_type: str = "STATION", parent_id: str = None) -> OrgGroupDTO:
-        g = OrgGroupDTO(group_id=str(uuid.uuid4()), group_name=name, group_type=group_type, parent_group_id=parent_id, created_at=datetime.now().isoformat())
+        g = OrgGroupDTO(group_id=str(uuid.uuid4()), group_name=name, group_type=group_type,
+                        parent_group_id=parent_id, created_at=datetime.now().isoformat())
         self._org_groups[g.group_id] = g
         return g
 
@@ -56,8 +59,8 @@ class GroupManager:
 
     # ── Dynamic Group ─────────────────────────────────────────────────
     def create_dynamic_group(self, name: str, group_type: str = "TASK_FORCE", lead_id: int = 0,
-                              case_ids: list[int] = None, offender_ids: list[int] = None,
-                              duration_days: int = 90, description: str = None) -> DynamicGroupDTO:
+                             case_ids: list[int] = None, offender_ids: list[int] = None,
+                             duration_days: int = 90, description: str = None) -> DynamicGroupDTO:
         g = DynamicGroupDTO(
             group_id=str(uuid.uuid4()), group_name=name, group_type=group_type,
             description=description, lead_employee_id=lead_id,
@@ -94,16 +97,32 @@ class GroupManager:
             return False
         g.status = "dissolved"
         if self._is_live():
-            self._db.execute_non_query(f"UPDATE {self._dg_table} SET status='dissolved' WHERE group_id='{group_id.replace(chr(39),chr(39)+chr(39))}'")
+            self._db.execute_non_query(
+                f"UPDATE {self._dg_table} SET status='dissolved' WHERE group_id='{group_id.replace(chr(39),chr(39)+chr(39))}'")
         return True
 
-    def add_group_member(self, group_id: str, employee_id: int, role: str = "MEMBER",
-                          can_modify: bool = False, can_approve: bool = False, data_scope: str = "group") -> Optional[DynamicGroupMemberDTO]:
+    def add_group_member(
+            self,
+            group_id: str,
+            employee_id: int,
+            role: str = "MEMBER",
+            can_modify: bool = False,
+            can_approve: bool = False,
+            data_scope: str = "group") -> Optional[DynamicGroupMemberDTO]:
         if group_id not in self._dynamic_groups:
             return None
-        m = DynamicGroupMemberDTO(membership_id=str(uuid.uuid4()), group_id=group_id, employee_id=employee_id, role=role, can_modify=can_modify, can_approve=can_approve, data_scope=data_scope)
+        m = DynamicGroupMemberDTO(
+            membership_id=str(
+                uuid.uuid4()),
+            group_id=group_id,
+            employee_id=employee_id,
+            role=role,
+            can_modify=can_modify,
+            can_approve=can_approve,
+            data_scope=data_scope)
         if self._is_live():
-            self._db.insert_bulk_rows(self._gm_table, [{k: (str(v).lower() if isinstance(v, bool) else v) for k, v in m.model_dump().items()}])
+            self._db.insert_bulk_rows(
+                self._gm_table, [{k: (str(v).lower() if isinstance(v, bool) else v) for k, v in m.model_dump().items()}])
         self._memberships[f"{group_id}:{employee_id}"] = m
         return m
 
@@ -113,7 +132,8 @@ class GroupManager:
             return False
         del self._memberships[key]
         if self._is_live():
-            self._db.execute_non_query(f"DELETE FROM {self._gm_table} WHERE group_id='{group_id.replace(chr(39),chr(39)+chr(39))}' AND employee_id={employee_id}")
+            self._db.execute_non_query(
+                f"DELETE FROM {self._gm_table} WHERE group_id='{group_id.replace(chr(39),chr(39)+chr(39))}' AND employee_id={employee_id}")
         return True
 
     def get_member(self, group_id: str, employee_id: int) -> Optional[DynamicGroupMemberDTO]:
@@ -130,7 +150,7 @@ class GroupManager:
 
     # ── Coordination ──────────────────────────────────────────────────
     def create_coordination(self, from_id: int, to_unit_id: int, req_type: str = "SUSPECT_LOCATION",
-                             subject: str = "", body: str = "", case_id: int = None) -> CoordinationRequestDTO:
+                            subject: str = "", body: str = "", case_id: int = None) -> CoordinationRequestDTO:
         req = CoordinationRequestDTO(
             request_id=str(uuid.uuid4()), from_employee_id=from_id, to_unit_id=to_unit_id,
             request_type=req_type, subject=subject, body=body, linked_case_id=case_id,
@@ -157,10 +177,12 @@ class GroupManager:
         if assigned_to:
             req.assigned_to_employee_id = assigned_to
         if self._is_live():
-            self._db.execute_non_query(f"UPDATE {self._cr_table} SET status='{status.replace(chr(39),chr(39)+chr(39))}' WHERE request_id='{request_id.replace(chr(39),chr(39)+chr(39))}'")
+            self._db.execute_non_query(
+                f"UPDATE {self._cr_table} SET status='{status.replace(chr(39),chr(39)+chr(39))}' WHERE request_id='{request_id.replace(chr(39),chr(39)+chr(39))}'")
         return True
 
-    def list_coordination(self, from_id: int = None, to_unit: int = None, status: str = None) -> list[CoordinationRequestDTO]:
+    def list_coordination(self, from_id: int = None, to_unit: int = None,
+                          status: str = None) -> list[CoordinationRequestDTO]:
         self._load_dynamic_groups()
         results = list(self._coordination.values())
         if from_id:

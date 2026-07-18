@@ -1,0 +1,8 @@
+zcatalyst-sdk==1.4.0
+prophet
+scikit-learn
+networkx
+rapidfuzz
+statsmodels
+pandas
+numpy

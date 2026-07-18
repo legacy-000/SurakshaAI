@@ -1,0 +1,18 @@
+{
+  "initialized": true,
+  "topology": "hierarchical",
+  "workers": [],
+  "consensus": {
+    "pending": [],
+    "history": []
+  },
+  "sharedMemory": {},
+  "createdAt": "2026-07-16T18:12:30.526Z",
+  "updatedAt": "2026-07-16T18:12:30.527Z",
+  "consensusStrategy": "byzantine",
+  "queen": {
+    "agentId": "suraksha-queen",
+    "electedAt": "2026-07-16T18:12:30.526Z",
+    "term": 1
+  }
+}

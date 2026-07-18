@@ -1,23 +1,27 @@
 """Self-check tests for Phase 3 — Security Foundation + Multi-Agent Orchestration."""
 
-import sys, os, json, uuid
+from commander.evidence_validator import EvidenceValidator
+from commander.commander import Commander
+from security.audit_logger import AuditLogger
+from security.rbac_middleware import RBACMiddleware
+from auth.auth_handler import AuthHandler
+from models.dto import UserContextDTO, EarlyWarningAlertDTO, LoginRequestDTO
+import sys
+import os
 BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, BASE)
 os.environ.setdefault("PYTHONPATH", BASE)
 
-from models.dto import UserContextDTO, EarlyWarningAlertDTO, LoginRequestDTO
-from auth.auth_handler import AuthHandler
-from security.rbac_middleware import RBACMiddleware
-from security.audit_logger import AuditLogger
-from commander.commander import Commander
-from commander.evidence_validator import EvidenceValidator
 
 # ponytail: inline mock profiler to avoid the "from common.*" import chain during CI
+
 class _MockOffenderAgent:
     def run(self, query):
         return {"data": {"entity_name": "Ravi Kumar", "risk_tier": "ELEVATED",
                          "total_score": 72.5, "case_count": 8, "linked_cases": [],
                          "disclaimer": "Mock"}, "evidence": []}
+
+
 OffenderAgent = _MockOffenderAgent
 
 
@@ -50,8 +54,8 @@ def test_rbac_authorize():
     rbac = RBACMiddleware()
     user = UserContextDTO(user_id="INV001", kgid="INV001", first_name="Ravi",
                           email="", role_id=1, role_name="Investigator")
-    assert rbac.authorize_action(user, "chat_query") == True
-    assert rbac.authorize_action(user, "view_trends") == False
+    assert rbac.authorize_action(user, "chat_query")
+    assert not rbac.authorize_action(user, "view_trends")
     print("  PASS: rbac_authorize")
 
 
@@ -140,7 +144,7 @@ def test_evidence_validator():
     evidence = [{"evidence_id": "e1", "evidence_type": "database_fact", "source_table": "CaseMaster"}]
     validated = validator.validate(evidence)
     assert len(validated) == 1
-    assert validated[0]["validated"] == True
+    assert validated[0]["validated"]
     assert "validated_at" in validated[0]
     print("  PASS: evidence_validator")
 

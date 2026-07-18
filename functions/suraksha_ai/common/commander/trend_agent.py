@@ -1,6 +1,5 @@
 import logging
-from datetime import datetime
-from common.models.dto import CrimeTrendRequestDTO, EvidenceReferenceDTO
+from common.models.dto import CrimeTrendRequestDTO
 
 logger = logging.getLogger(__name__)
 

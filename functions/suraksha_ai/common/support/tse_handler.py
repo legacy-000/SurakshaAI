@@ -45,7 +45,8 @@ class TSEHandler:
 
     def constraint_check(self) -> dict:
         if self._is_live():
-            res = self._db.execute_non_query("SELECT table_name, constraint_name, constraint_type FROM information_schema.table_constraints WHERE constraint_type = 'FOREIGN KEY'")
+            res = self._db.execute_non_query(
+                "SELECT table_name, constraint_name, constraint_type FROM information_schema.table_constraints WHERE constraint_type = 'FOREIGN KEY'")
             return {"constraints": res.get("rows", []), "status": "checked"}
         # mock check for dev
         return {"status": "ok", "constraints": [], "note": "mock (not live — no real constraint check)"}
@@ -53,25 +54,33 @@ class TSEHandler:
     def system_metrics(self) -> dict:
         if self._is_live():
             try:
-                res = self._db.execute_non_query("SELECT check_time, status_code, duration_ms FROM system_health ORDER BY check_time DESC LIMIT 10")
+                res = self._db.execute_non_query(
+                    "SELECT check_time, status_code, duration_ms FROM system_health ORDER BY check_time DESC LIMIT 10")
                 return {"metrics": res.get("rows", [])}
             except Exception:
                 pass
-        return {"status": "unknown", "note": "mock metrics (not live — no system_health table)", "suggested_checks": ["CPU > 85%", "Disk > 90%", "Cache hit rate < 80%"]}
+        return {"status": "unknown", "note": "mock metrics (not live — no system_health table)", "suggested_checks": [
+            "CPU > 85%", "Disk > 90%", "Cache hit rate < 80%"]}
 
     def active_sessions(self) -> dict:
         if self._is_live():
             try:
-                res = self._db.execute_non_query("SELECT pid, usename, application_name, state, query_start FROM pg_stat_activity WHERE state != 'idle'")
+                res = self._db.execute_non_query(
+                    "SELECT pid, usename, application_name, state, query_start FROM pg_stat_activity WHERE state != 'idle'")
                 return {"sessions": res.get("rows", [])}
             except Exception:
                 pass
-        return {"sessions": [{"pid": 12345, "usename": "suraksha_app", "application_name": "SurakshaAPI", "state": "active"}], "note": "mock session data (not live)"}
+        return {"sessions": [{"pid": 12345,
+                              "usename": "suraksha_app",
+                              "application_name": "SurakshaAPI",
+                              "state": "active"}],
+                "note": "mock session data (not live)"}
 
     def index_stats(self) -> dict:
         if self._is_live():
             try:
-                res = self._db.execute_non_query("SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read FROM pg_stat_user_indexes ORDER BY idx_scan DESC LIMIT 20")
+                res = self._db.execute_non_query(
+                    "SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read FROM pg_stat_user_indexes ORDER BY idx_scan DESC LIMIT 20")
                 return {"indexes": res.get("rows", [])}
             except Exception:
                 pass
@@ -85,13 +94,24 @@ class TSEHandler:
                 return {"errors": res.get("rows", [])}
             except Exception:
                 pass
-        return {"errors": [{"error_timestamp": "2026-07-15T10:00:00Z", "error_code": "TSE_DIAG_001", "stack_trace": "Mock diagnostic: no live system_logs table"}], "note": "mock logs (not live)"}
+        return {"errors": [{"error_timestamp": "2026-07-15T10:00:00Z", "error_code": "TSE_DIAG_001",
+                            "stack_trace": "Mock diagnostic: no live system_logs table"}], "note": "mock logs (not live)"}
 
     def cache_stats(self) -> dict:
-        return {"cache_name": "default", "hit_rate": 0.92, "eviction_count": 12, "size_bytes": 1048576, "note": "mock stats (not live)"}
+        return {
+            "cache_name": "default",
+            "hit_rate": 0.92,
+            "eviction_count": 12,
+            "size_bytes": 1048576,
+            "note": "mock stats (not live)"}
 
     def auth_tokens(self) -> dict:
-        return {"tokens": [{"token_id": "tok_001", "token_issuer": "Catalyst", "issued_at": "2026-07-01T00:00:00Z", "expires_at": "2026-07-08T00:00:00Z", "status": "EXPIRED"}], "note": "mock tokens (not live)"}
+        return {"tokens": [{"token_id": "tok_001",
+                            "token_issuer": "Catalyst",
+                            "issued_at": "2026-07-01T00:00:00Z",
+                            "expires_at": "2026-07-08T00:00:00Z",
+                            "status": "EXPIRED"}],
+                "note": "mock tokens (not live)"}
 
     def validate_sql(self, sql: str) -> dict:
         st = sql.strip().upper()
@@ -106,7 +126,11 @@ class TSEHandler:
             issues.append("JOINs not supported in ZCQL — use multi-step queries with IN")
         if " LIKE " in st:
             issues.append("LIKE operator not supported — use exact =")
-        return {"sql": sql, "valid": len(issues) == 0, "issues": issues, "estimated_cost": "EXPLAIN unavailable in dev mode"}
+        return {
+            "sql": sql,
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "estimated_cost": "EXPLAIN unavailable in dev mode"}
 
     def _is_live(self):
         return self._db and self._db.is_connected

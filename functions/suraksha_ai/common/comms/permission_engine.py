@@ -1,4 +1,4 @@
-import json, uuid
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from models.dto import PermissionCheckDTO, TempPermissionDTO
@@ -104,7 +104,8 @@ class PermissionEngine:
             reason=reason, status="active",
         )
         if self._is_live():
-            self._db.insert_bulk_rows(self._del_table, [{k: (v if not isinstance(v, bool) else str(v).lower()) for k, v in entry.model_dump().items()}])
+            self._db.insert_bulk_rows(self._del_table, [{k: (v if not isinstance(
+                v, bool) else str(v).lower()) for k, v in entry.model_dump().items()}])
         self._delegations[entry.permission_id] = entry
         return entry
 
@@ -114,7 +115,8 @@ class PermissionEngine:
             return False
         entry.status = "revoked"
         if self._is_live():
-            self._db.execute_non_query(f"UPDATE {self._del_table} SET status='revoked' WHERE permission_id='{permission_id.replace(chr(39),chr(39)+chr(39))}'")
+            self._db.execute_non_query(
+                f"UPDATE {self._del_table} SET status='revoked' WHERE permission_id='{permission_id.replace(chr(39),chr(39)+chr(39))}'")
         return True
 
     def has_delegation(self, employee_id: int, permission: str) -> Optional[TempPermissionDTO]:

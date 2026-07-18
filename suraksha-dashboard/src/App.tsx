@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
 import { Sidebar } from './components/Sidebar';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginPage } from './pages/LoginPage';
 import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -54,7 +55,7 @@ function App() {
 
   return (
     <HashRouter>
-      <Routes>
+      <ErrorBoundary><Routes>
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
@@ -78,7 +79,7 @@ function App() {
         <Route path="/groups" element={<ProtectedRoute roles={['Investigator', 'Analyst', 'Supervisor', 'System Administrator']}><GroupManagerPage /></ProtectedRoute>} />
         <Route path="/audit-log" element={<ProtectedRoute roles={['Investigator', 'Analyst', 'Supervisor', 'System Administrator']}><AuditLogPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes></ErrorBoundary>
     </HashRouter>
   );
 }

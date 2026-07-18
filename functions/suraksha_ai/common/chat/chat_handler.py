@@ -90,11 +90,17 @@ STATUS_MAP = {
 TOTAL_RE = re.compile(r"(total|count|how many)\s+(cases|firs)", re.I)
 STATS_RE = re.compile(r"(crime\s+)?statistics|summary|overview", re.I)
 ALL_CASES_RE = re.compile(r"(show|list|find|get)\s+(me\s+|all\s+)?(cases|firs)", re.I)
-SHOW_CRIME_RE = re.compile(r"(show|list|find|get)\s+(me\s+|all\s+)?(theft|murder|robbery|assault|burglary|kidnapping|cheating|snatching|cyber)\w*", re.I)
+SHOW_CRIME_RE = re.compile(
+    r"(show|list|find|get)\s+(me\s+|all\s+)?(theft|murder|robbery|assault|burglary|kidnapping|cheating|snatching|cyber)\w*",
+    re.I)
 CASES_IN_RE = re.compile(r"(cases|firs)(\s+in|\s+at|\s+for)?\s+(.+)$", re.I)
-SPLIT_RE = re.compile(r"split|breakdown|per\s+(place|district|city|area)|by\s+(place|district|city|area)|each\s+(place|district)", re.I)
+SPLIT_RE = re.compile(
+    r"split|breakdown|per\s+(place|district|city|area)|by\s+(place|district|city|area)|each\s+(place|district)",
+    re.I)
 MAP_RE = re.compile(r"(show|on)\s+(a\s+)?map|map\s+view|where\s+are", re.I)
-FOLLOWUP_DENY_RE = re.compile(r"^(show on map|compare with last year|which had arrests|show top 5 districts|show by district|by officer|overdue|pending)\s*$", re.I)
+FOLLOWUP_DENY_RE = re.compile(
+    r"^(show on map|compare with last year|which had arrests|show top 5 districts|show by district|by officer|overdue|pending)\s*$",
+    re.I)
 LOCATION_RE = re.compile(r'(?:in|at|for)\s+(\w+(?:\s+\w+)?)(?:\s+(?:district|city|area|region))?\s*$', re.I)
 TEMPORAL_THIS_YEAR_RE = re.compile(r'\bthis\s+year\b', re.I)
 TEMPORAL_LAST_YEAR_RE = re.compile(r'\blast\s+year\b', re.I)
@@ -398,33 +404,49 @@ class ChatHandler:
 
         msg_lower = req.message.strip().lower().rstrip('?.!')
         greetings = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "namaste"}
-        identity_queries = {"what is your name", "who are you", "what are you", "tell me about yourself", "your name", "who made you"}
+        identity_queries = {
+            "what is your name",
+            "who are you",
+            "what are you",
+            "tell me about yourself",
+            "your name",
+            "who made you"}
 
         if msg_lower in greetings or any(g in msg_lower for g in {"hello ", "hi ", "hey "}):
             resp = self._try_glm_tool_call(req.message, user_context)
             content_text = resp.get("text") if not resp.get("error") else None
             return ConversationMessageDTO(
-                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+                message_id=str(
+                    uuid.uuid4()),
+                conversation_id=conv_id,
                 message_type="ai_response",
                 content_text=content_text or "Hello! I am Suraksha AI, your crime intelligence assistant for Karnataka. How can I help you today?",
                 content_kannada="ನಮಸ್ಕಾರ! ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕದ ಅಪರಾಧ ಗುಪ್ತಚರ ಸಹಾಯಕ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
-                confidence_class="high", grounding_status="verified",
-                suggested_followups=["Show theft cases", "Show hotspot areas", "Predict future trends"],
-                created_at=datetime.now().isoformat()
-            )
+                confidence_class="high",
+                grounding_status="verified",
+                suggested_followups=[
+                    "Show theft cases",
+                    "Show hotspot areas",
+                    "Predict future trends"],
+                created_at=datetime.now().isoformat())
 
         if any(q in msg_lower for q in identity_queries):
             resp = self._try_glm_tool_call(req.message, user_context)
             content_text = resp.get("text") if not resp.get("error") else None
             return ConversationMessageDTO(
-                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+                message_id=str(
+                    uuid.uuid4()),
+                conversation_id=conv_id,
                 message_type="ai_response",
                 content_text=content_text or "I am Suraksha AI, an AI-powered Crime Intelligence and Analytics platform built for the Karnataka State Police.",
                 content_kannada="ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕ ರಾಜ್ಯ ಪೊಲೀಸ್‌ಗಾಗಿ ಅಪರಾಧ ಪತ್ತೆ ಹಚ್ಚುವಿಕೆ, ಮುನ್ಸೂಚನೆ ಮತ್ತು ಅಪರಾಧಿಗಳ ಪ್ರೊಫೈಲಿಂಗ್‌ನಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ನಿರ್ಮಿಸಲಾದ AI-ಆಧಾರಿತ ಅಪರಾಧ ಗುಪ್ತಚರ ಮತ್ತು ವಿಶ್ಲೇಷಣಾ ವೇದಿಕೆ.",
-                confidence_class="high", grounding_status="verified",
-                suggested_followups=["Show theft cases", "Show hotspot areas", "Predict future trends"],
-                created_at=datetime.now().isoformat()
-            )
+                confidence_class="high",
+                grounding_status="verified",
+                suggested_followups=[
+                    "Show theft cases",
+                    "Show hotspot areas",
+                    "Predict future trends"],
+                created_at=datetime.now().isoformat())
 
         # Try GLM tool-calling first
         glm_result = self._try_glm_tool_call(req.message, user_context)
@@ -458,6 +480,7 @@ class ChatHandler:
             msg = ConversationMessageDTO(
                 message_id=str(uuid.uuid4()), conversation_id=conv_id,
                 message_type="ai_response", content_text=answer,
+                content_kannada=self._translate_answer(answer),
                 sql_text=sql_text, evidence_refs=evidence,
                 confidence_class=cc, grounding_status=gv,
                 suggested_followups=self._generate_followups(exec_res),
@@ -472,21 +495,26 @@ class ChatHandler:
         sql_text, _warnings = self._match_common_query(req.message)
         exec_result = self.executor.execute(sql_text)
         if exec_result.get("error"):
+            err_msg = f"{exec_result.get('message', 'Query execution failed')} | Generated SQL: {sql_text}"
+            err_msg_kn = f"{self._translate_answer(exec_result.get('message', 'Query execution failed'))} | Generated SQL: {sql_text}"
             return ConversationMessageDTO(
                 message_id=str(uuid.uuid4()), conversation_id=conv_id,
                 message_type="ai_response",
-                content_text=f"{exec_result.get('message', 'Query execution failed')} | Generated SQL: {sql_text}",
+                content_text=err_msg,
+                content_kannada=err_msg_kn,
                 confidence_class=self._confidence.classify(exec_result),
                 grounding_status=self._grounding.validate("", exec_result),
                 created_at=datetime.now().isoformat()
             )
 
+        answer = self.answer_gen.generate(exec_result, req.message)
         evidence = self.evidence_builder.build_evidence(exec_result)
         cc = self._confidence.classify(exec_result)
         gv = self._grounding.validate(answer, exec_result)
         msg = ConversationMessageDTO(
             message_id=str(uuid.uuid4()), conversation_id=conv_id,
             message_type="ai_response", content_text=answer,
+            content_kannada=self._translate_answer(answer),
             sql_text=sql_text, query_id=exec_result.get("query_id"),
             evidence_refs=evidence,
             confidence_class=cc, grounding_status=gv,
@@ -495,6 +523,78 @@ class ChatHandler:
         )
         self.conversation_manager.add_message(conv_id, msg)
         return msg
+
+    def _translate_answer(self, answer: str) -> str:
+        from common.i18n.translation_manager import TranslationManager
+        translated = TranslationManager().translate(answer, 'kn')
+        if translated != answer:
+            return translated
+
+        import re
+        places_kn = {
+            "bangalore": "ಬೆಂಗಳೂರು",
+            "bengaluru": "ಬೆಂಗಳೂರು",
+            "mysuru": "ಮೈಸೂರು",
+            "mysore": "ಮೈಸೂರು",
+            "mangalore": "ಮಂಗಳೂರು",
+            "mangaluru": "ಮಂಗಳೂರು",
+            "hubli": "ಹುಬ್ಬಳ್ಳಿ",
+            "belgaum": "ಬೆಳಗಾವಿ",
+            "belagavi": "ಬೆಳಗಾವಿ",
+            "dharwad": "ಧಾರವಾಡ",
+            "shivamogga": "ಶಿವಮೊಗ್ಗ",
+            "tumkur": "ತುಮಕೂರು",
+            "kalaburagi": "ಕಲಬುರಗಿ",
+        }
+        crimes_kn = {
+            "theft": "ಕಳ್ಳತನ",
+            "robbery": "ದರೋಡೆ",
+            "assault": "ಹಲ್ಲೆ",
+            "murder": "ಕೊಲೆ",
+            "burglary": "ಕನ್ನಗಳವು",
+            "kidnapping": "ಅಪಹರಣ",
+            "cyber": "ಸೈಬರ್ ಅಪರಾಧ",
+        }
+
+        # 1. "I found (\d+) (\w+)\s*cases in (\w+(?:\s+\w+)?)\b"
+        m = re.search(r"I found (\d+) (\w+)\s*cases in (\w+(?:\s+\w+)?)\b", answer, re.I)
+        if m:
+            count = m.group(1)
+            crime = m.group(2).lower()
+            place = m.group(3).lower()
+            crime_kn = crimes_kn.get(crime, crime)
+            place_kn = places_kn.get(place, place.capitalize())
+            return f"{place_kn} ನಲ್ಲಿ {count} {crime_kn} ಪ್ರಕರಣಗಳು ಕಂಡುಬಂದಿವೆ."
+
+        # 2. "I found (\d+) cases in (\w+(?:\s+\w+)?)\b"
+        m = re.search(r"I found (\d+) cases in (\w+(?:\s+\w+)?)\b", answer, re.I)
+        if m:
+            count = m.group(1)
+            place = m.group(2).lower()
+            place_kn = places_kn.get(place, place.capitalize())
+            return f"{place_kn} ನಲ್ಲಿ {count} ಪ್ರಕರಣಗಳು ಕಂಡುಬಂದಿವೆ."
+
+        # 3. "Found (\d+) records\."
+        m = re.search(r"Found (\d+) records\b", answer, re.I)
+        if m:
+            return f"{m.group(1)} ಪ್ರಕರಣಗಳು ಕಂಡುಬಂದಿವೆ."
+
+        # 4. "No records found matching your query."
+        if "no records found" in answer.lower():
+            return "ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಯಾವುದೇ ಪ್ರಕರಣಗಳು ತಾಳೆಯಾಗುತ್ತಿಲ್ಲ."
+
+        # Otherwise split and translate key crime/place words
+        words = answer.split()
+        translated_words = []
+        for w in words:
+            w_clean = w.lower().strip(".,?!")
+            w_kn = places_kn.get(w_clean) or crimes_kn.get(w_clean)
+            if w_kn:
+                suffix = w[len(w_clean):]
+                translated_words.append(w_kn + suffix)
+            else:
+                translated_words.append(w)
+        return " ".join(translated_words)
 
     def _generate_followups(self, exec_result):
         f = ["Show on map", "Compare with last year", "Which had arrests?"]

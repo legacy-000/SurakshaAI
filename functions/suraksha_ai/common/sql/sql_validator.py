@@ -21,4 +21,3 @@ class SQLValidator:
             return {"is_valid": False, "errors": ["Data modification not allowed"]}
 
         return {"is_valid": True, "validated_sql": sql_text, "warnings": []}
-

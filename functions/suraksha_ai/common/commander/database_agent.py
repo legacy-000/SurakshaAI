@@ -1,5 +1,5 @@
 import logging
-from common.models.dto import QueryRequestDTO, ConversationMessageDTO, EvidenceReferenceDTO
+from common.models.dto import QueryRequestDTO
 
 logger = logging.getLogger(__name__)
 

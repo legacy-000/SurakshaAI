@@ -1,7 +1,7 @@
-import uuid, logging
+import uuid
+import logging
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
 from models.dto import UserContextDTO
 
 logger = logging.getLogger(__name__)

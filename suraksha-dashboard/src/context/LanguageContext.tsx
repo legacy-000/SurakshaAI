@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Language = 'en' | 'kn';
+type Language = 'en' | 'kn' | 'hi';
 
 interface LanguageContextType {
   lang: Language;
   toggleLang: () => void;
-  t: (en: string, kn: string) => string;
+  t: (en: string, kn: string, hi?: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -23,8 +23,12 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('lang', lang);
   }, [lang]);
 
-  const toggleLang = () => setLang(l => (l === 'en' ? 'kn' : 'en'));
-  const t = (en: string, kn: string) => (lang === 'kn' ? kn : en);
+  const toggleLang = () => setLang(l => (l === 'en' ? 'kn' : l === 'kn' ? 'hi' : 'en'));
+  const t = (en: string, kn: string, hi?: string) => {
+    if (lang === 'kn') return kn;
+    if (lang === 'hi') return hi || en;
+    return en;
+  };
 
   return (
     <LanguageContext.Provider value={{ lang, toggleLang, t }}>

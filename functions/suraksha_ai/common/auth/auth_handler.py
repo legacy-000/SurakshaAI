@@ -1,17 +1,50 @@
-import hashlib, hmac, json, base64, logging
-from datetime import datetime
+import hashlib
+import hmac
+import json
+import base64
+import logging
 from typing import Optional
 from models.dto import LoginRequestDTO, UserContextDTO
 
 logger = logging.getLogger(__name__)
 
 USERS = {
-    "INV001": {"password_hash": "mock_hash", "role_name": "Investigator", "role_id": 1, "unit_id": 1, "district_id": 1, "name": "Ravi Kumar"},
-    "ANL001": {"password_hash": "mock_hash", "role_name": "Analyst", "role_id": 2, "district_id": 18, "name": "Priya Sharma"},
-    "SUP001": {"password_hash": "mock_hash", "role_name": "Supervisor", "role_id": 3, "unit_id": 1, "district_id": 1, "name": "Amit Singh"},
-    "POL001": {"password_hash": "mock_hash", "role_name": "Policymaker", "role_id": 4, "district_id": 18, "name": "Dr. Meena Rao"},
-    "ADM001": {"password_hash": "mock_hash", "role_name": "System Administrator", "role_id": 5, "name": "Vikram P"},
-    "TSE001": {"password_hash": "mock_hash", "role_name": "Technical Support Engineer", "role_id": 6, "name": "Anita Rao"},
+    "INV001": {
+        "password_hash": "mock_hash",
+        "role_name": "Investigator",
+        "role_id": 1,
+        "unit_id": 1,
+        "district_id": 1,
+        "name": "Ravi Kumar"},
+    "ANL001": {
+        "password_hash": "mock_hash",
+        "role_name": "Analyst",
+        "role_id": 2,
+        "district_id": 18,
+        "name": "Priya Sharma"},
+    "SUP001": {
+        "password_hash": "mock_hash",
+        "role_name": "Supervisor",
+        "role_id": 3,
+        "unit_id": 1,
+        "district_id": 1,
+        "name": "Amit Singh"},
+    "POL001": {
+        "password_hash": "mock_hash",
+        "role_name": "Policymaker",
+        "role_id": 4,
+        "district_id": 18,
+        "name": "Dr. Meena Rao"},
+    "ADM001": {
+        "password_hash": "mock_hash",
+        "role_name": "System Administrator",
+        "role_id": 5,
+        "name": "Vikram P"},
+    "TSE001": {
+        "password_hash": "mock_hash",
+        "role_name": "Technical Support Engineer",
+        "role_id": 6,
+        "name": "Anita Rao"},
 }
 
 MOCK_SECRET = "suraksha_ai_dev_secret_2026"
@@ -19,6 +52,7 @@ MOCK_SECRET = "suraksha_ai_dev_secret_2026"
 
 def _b64(data: str) -> str:
     return base64.urlsafe_b64encode(data.encode()).decode().rstrip("=")
+
 
 def _unb64(data: str) -> str:
     padded = data + "=" * (-len(data) % 4)
@@ -42,12 +76,41 @@ class AuthHandler:
                 return {
                     "user_id": kgid,
                     "kgid": kgid,
-                    "first_name": getattr(current, 'first_name', '') or getattr(current, 'name', ''),
-                    "email": getattr(current, 'email', ''),
-                    "role_id": getattr(current, 'role_id', 1) if hasattr(current, 'role_id') else 1,
-                    "role_name": getattr(current, 'role_name', 'Investigator') if hasattr(current, 'role_name') else 'Investigator',
-                    "unit_id": getattr(current, 'unit_id', None) if hasattr(current, 'unit_id') else None,
-                    "district_id": getattr(current, 'district_id', None) if hasattr(current, 'district_id') else None,
+                    "first_name": getattr(
+                        current,
+                        'first_name',
+                        '') or getattr(
+                        current,
+                        'name',
+                        ''),
+                    "email": getattr(
+                        current,
+                        'email',
+                        ''),
+                    "role_id": getattr(
+                        current,
+                        'role_id',
+                        1) if hasattr(
+                        current,
+                        'role_id') else 1,
+                    "role_name": getattr(
+                        current,
+                        'role_name',
+                            'Investigator') if hasattr(
+                                current,
+                                'role_name') else 'Investigator',
+                    "unit_id": getattr(
+                        current,
+                        'unit_id',
+                        None) if hasattr(
+                        current,
+                        'unit_id') else None,
+                    "district_id": getattr(
+                        current,
+                        'district_id',
+                        None) if hasattr(
+                        current,
+                        'district_id') else None,
                 }
         except Exception as e:
             logger.info("Catalyst User Management not available: %s", e)
@@ -63,17 +126,28 @@ class AuthHandler:
         user = USERS.get(req.kgid.upper())
         if not user or req.password != "pass123":
             return {"error": "AUTH_001", "message": "Invalid KGID or password."}
-        now = datetime.now().isoformat()
-        payload = json.dumps({"kgid": req.kgid.upper(), "role": user["role_name"], "iat": now})
-        encoded = _b64(payload)
-        sig = hmac.new(MOCK_SECRET.encode(), encoded.encode(), hashlib.sha256).hexdigest()
-        token = f"v2.{encoded}.{sig}"
-        return {"token": token, "user": {
-            "user_id": req.kgid.upper(), "kgid": req.kgid.upper(),
-            "first_name": user["name"], "role_id": user["role_id"],
-            "role_name": user["role_name"], "unit_id": user.get("unit_id"),
-            "district_id": user.get("district_id"),
-        }, "expires_in": 3600}
+
+        from common.auth.token_manager import TokenManager
+        tokens = TokenManager.generate_tokens(
+            req.kgid.upper(),
+            user["role_name"],
+            {
+                "role_id": user["role_id"],
+                "unit_id": user.get("unit_id"),
+                "district_id": user.get("district_id")
+            }
+        )
+        return {
+            "token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+            "user": {
+                "user_id": req.kgid.upper(), "kgid": req.kgid.upper(),
+                "first_name": user["name"], "role_id": user["role_id"],
+                "role_name": user["role_name"], "unit_id": user.get("unit_id"),
+                "district_id": user.get("district_id"),
+            },
+            "expires_in": 3600
+        }
 
     def verify_token(self, token: str) -> Optional[UserContextDTO]:
         # Try Catalyst OAuth user
@@ -81,7 +155,30 @@ class AuthHandler:
         if live_user:
             return UserContextDTO(**live_user, language_preference="en")
 
-        # Fallback to mock JWT
+        # Try proper JWT verification
+        from common.auth.token_manager import TokenManager, JWT_SECRET
+        import jwt
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"], issuer="suraksha_ai")
+            jti = payload.get("jti")
+            if jti and TokenManager.is_revoked(jti):
+                return None
+
+            kgid = payload.get("kgid")
+            user = USERS.get(kgid)
+            if not user:
+                return None
+
+            return UserContextDTO(
+                user_id=kgid, kgid=kgid, first_name=user["name"],
+                email="", role_id=user["role_id"], role_name=user["role_name"],
+                unit_id=user.get("unit_id"), district_id=user.get("district_id"),
+                language_preference="en",
+            )
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            pass  # Fall through to legacy check
+
+        # Fallback to mock/legacy v2 HMAC token (backward compatibility)
         try:
             parts = token.split(".")
             if len(parts) != 3 or parts[0] != "v2":

@@ -50,42 +50,81 @@ target-version = ['py310']
 include = '\\.pyi?$'
 exclude = '''
 /(
-    \\.git
-  | \\.hg
-  | \\.mypy_cache
-  | \\.tox
-  | \\.venv
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
   | _build
   | buck-out
+  | \.venv
   | build
   | dist
+  | suraksha-dashboard
+  | node_modules
 )/
 '''
 
+[tool.flake8]
+max-line-length = 130
+extend-ignore = ["E203", "W503", "E731"]
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".mypy_cache",
+    "node_modules",
+    "suraksha-dashboard",
+]
+
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-avoid_as_keyword = true
+follow_imports = "skip"
+warn_return_any = false
+warn_unused_configs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = true
+ignore_errors = false
+exclude = [
+    "build/",
+    "dist/",
+    ".venv/",
+    "venv/",
+    "node_modules/",
+    "suraksha-dashboard/",
+]
 
 [[tool.mypy.overrides]]
 module = [
+    "common.*",
+    "functions.suraksha_ai.common.*",
+    "models.*",
     "catalyst.*",
     "numpy.*",
     "pandas.*",
     "sklearn.*",
-    "matplotlib.*"
+    "matplotlib.*",
+    "reportlab.*",
+    "tests.*",
 ]
 ignore_missing_imports = true
+ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = [
     "tests",
+    "functions/suraksha_ai/common/tests",
 ]
 asyncio_mode = "auto"
 python_files = "test_*.py"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

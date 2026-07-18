@@ -52,7 +52,8 @@ class DatastoreClient:
                         vals.append(f"'{str(v).replace(chr(39), chr(39)+chr(39))}'")
                 res = self.execute_non_query(f"INSERT INTO {table_name} ({cols}) VALUES ({', '.join(vals)})")
                 if "error" in res:
-                    return {"error": "DB_BULK_INSERT_FAILED", "message": res.get("message", ""), "sql": f"INSERT INTO {table_name} ({cols}) VALUES (...)"}
+                    return {"error": "DB_BULK_INSERT_FAILED", "message": res.get(
+                        "message", ""), "sql": f"INSERT INTO {table_name} ({cols}) VALUES (...)"}
                 count += 1
             return {"status": "success", "inserted": count}
         except Exception as e:

@@ -1,0 +1,128 @@
+{
+  "totalDecisions": 0,
+  "modelDistribution": {
+    "haiku": 0,
+    "sonnet": 0,
+    "opus": 0,
+    "inherit": 0
+  },
+  "avgComplexity": 0.5,
+  "avgConfidence": 0.8,
+  "circuitBreakerTrips": 8,
+  "lastUpdated": "2026-07-16T18:35:57.843Z",
+  "learningHistory": [
+    {
+      "task": "You own: C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\offender\\offender_profiler.p",
+      "model": "sonnet",
+      "complexity": 0.5300581395348837,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:33:12.123Z"
+    },
+    {
+      "task": "You own: C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\investigation\\lead_generator",
+      "model": "sonnet",
+      "complexity": 0.5043548990276739,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:33:42.947Z"
+    },
+    {
+      "task": "You own: C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\investigation\\investigation_",
+      "model": "sonnet",
+      "complexity": 0.5410875402792695,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:34:00.061Z"
+    },
+    {
+      "task": "You own: C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\governance\\governance.py (25",
+      "model": "sonnet",
+      "complexity": 0.446285030758715,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:34:15.415Z"
+    },
+    {
+      "task": "You own 3 files in C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\analytics\\:\n- tren",
+      "model": "sonnet",
+      "complexity": 0.7170687748783724,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:34:41.054Z"
+    },
+    {
+      "task": "You own: C:\\Users\\anivr\\Desktop\\SurakshaAI\\functions\\suraksha_ai\\common\\forecast\\forecaster.py\n\nTASK",
+      "model": "sonnet",
+      "complexity": 0.6608362369337979,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:35:06.037Z"
+    },
+    {
+      "task": "You own broken legacy tests in C:\\Users\\anivr\\Desktop\\SurakshaAI\\tests\\ — specifically test_e2e.py a",
+      "model": "sonnet",
+      "complexity": 0.6408419689119171,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:35:25.926Z"
+    },
+    {
+      "task": "You own the frontend test setup. Files you create/modify in C:\\Users\\anivr\\Desktop\\SurakshaAI\\suraks",
+      "model": "sonnet",
+      "complexity": 0.6730671641791044,
+      "outcome": "failure",
+      "timestamp": "2026-07-16T18:35:57.843Z"
+    }
+  ],
+  "version": 2,
+  "priors": {
+    "low": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "med": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 8
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "high": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 2
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    }
+  }
+}

@@ -44,27 +44,20 @@ class SchemaRAGRetriever:
             return self._static_context()
 
     def retrieve_examples(self, query: str, top_k: int = 3) -> list[dict]:
-        fallback = [
-            {
-                "natural_language": "Show theft cases in Bangalore",
-                "sql": "SELECT cm.CaseMasterID, cm.CrimeNo, cm.CrimeRegisteredDate FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID JOIN CrimeSubHead csh ON cm.CrimeMinorHeadID = csh.CrimeSubHeadID WHERE d.DistrictName = 'Bangalore' AND csh.CrimeHeadName = 'Theft' LIMIT 100"
-            },
-            {
-                "natural_language": "How many murder cases in Mysore this year?",
-                "sql": "SELECT COUNT(*) FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID JOIN CrimeSubHead csh ON cm.CrimeMinorHeadID = csh.CrimeSubHeadID WHERE d.DistrictName = 'Mysore' AND csh.CrimeHeadName = 'Murder' AND cm.CrimeRegisteredDate >= '2026-01-01'"
-            },
-            {
-                "natural_language": "List all accused in crime number 123/2025",
-                "sql": "SELECT a.AccusedName, cm.CrimeNo FROM Accused a JOIN CaseMaster cm ON a.CaseMasterID = cm.CaseMasterID WHERE cm.CrimeNo = '123/2025'"
-            }
-        ]
+        fallback = [{"natural_language": "Show theft cases in Bangalore",
+                     "sql": "SELECT cm.CaseMasterID, cm.CrimeNo, cm.CrimeRegisteredDate FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID JOIN CrimeSubHead csh ON cm.CrimeMinorHeadID = csh.CrimeSubHeadID WHERE d.DistrictName = 'Bangalore' AND csh.CrimeHeadName = 'Theft' LIMIT 100"},
+                    {"natural_language": "How many murder cases in Mysore this year?",
+                     "sql": "SELECT COUNT(*) FROM CaseMaster cm JOIN Unit u ON cm.PoliceStationID = u.UnitID JOIN District d ON u.DistrictID = d.DistrictID JOIN CrimeSubHead csh ON cm.CrimeMinorHeadID = csh.CrimeSubHeadID WHERE d.DistrictName = 'Mysore' AND csh.CrimeHeadName = 'Murder' AND cm.CrimeRegisteredDate >= '2026-01-01'"},
+                    {"natural_language": "List all accused in crime number 123/2025",
+                     "sql": "SELECT a.AccusedName, cm.CrimeNo FROM Accused a JOIN CaseMaster cm ON a.CaseMasterID = cm.CaseMasterID WHERE cm.CrimeNo = '123/2025'"}]
         if not self.is_available:
             return fallback
 
         try:
             kb = self._catalyst_app.quick_ml().kb(EXAMPLES_KB_NAME)
             results = kb.search_text(query, top_k=top_k)
-            retrieved = [{"natural_language": r.get("content", ""), "sql": (r.get("metadata") or {}).get("sql", "")} for r in (results or [])]
+            retrieved = [{"natural_language": r.get("content", ""), "sql": (
+                r.get("metadata") or {}).get("sql", "")} for r in (results or [])]
             return retrieved if retrieved else fallback
         except Exception as e:
             logger.warning("RAG KB example search failed: %s", e)

@@ -1,5 +1,4 @@
 import uuid
-import math
 from datetime import datetime
 from models.dto import PriorityScoreDTO, PriorityScoreFeature
 from config.constants import IPS_FEATURE_NAMES, IPS_FEATURE_WEIGHTS, SCORE_VERSION

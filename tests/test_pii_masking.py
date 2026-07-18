@@ -1,10 +1,12 @@
 from functions.security.pii_masker import PIIMasker
 
+
 def test_accused_name_masked():
     masker = PIIMasker()
     result = masker.mask_accused_name("Ravi Kumar")
     assert "***" in result
     assert result != "Ravi Kumar"
+
 
 def test_pii_masking_in_rows():
     masker = PIIMasker()

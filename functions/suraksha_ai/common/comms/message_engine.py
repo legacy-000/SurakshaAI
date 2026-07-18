@@ -1,4 +1,5 @@
-import json, uuid
+import json
+import uuid
 from datetime import datetime
 from typing import Optional
 from models.dto import MessageDTO, MessageSenderDTO, OrgUnitDTO, MessageRecipientStatus, MessageAttachmentDTO
@@ -79,8 +80,7 @@ class MessageEngine:
                 f"'{json.dumps([a.model_dump() for a in msg.attachments]).replace(chr(39),chr(39)+chr(39))}',"
                 f"'{msg.priority}','{msg.status}','{msg.created_at}','{msg.sent_at}',"
                 f"{'NULL' if not msg.parent_message_id else chr(39)+msg.parent_message_id.replace(chr(39),chr(39)+chr(39))+chr(39)},"
-                f"'{msg.thread_id}')"
-            )
+                f"'{msg.thread_id}')")
         self._upsert(msg)
         return msg
 
@@ -88,7 +88,8 @@ class MessageEngine:
         if message_id in self._messages:
             return self._messages[message_id]
         if self._is_live():
-            res = self._db.execute_non_query(f"SELECT * FROM {self._table} WHERE message_id='{message_id.replace(chr(39),chr(39)+chr(39))}'")
+            res = self._db.execute_non_query(
+                f"SELECT * FROM {self._table} WHERE message_id='{message_id.replace(chr(39),chr(39)+chr(39))}'")
             if res.get("rows"):
                 m = self._row_to_dto(dict(zip(res["columns"], res["rows"][0])))
                 if m:

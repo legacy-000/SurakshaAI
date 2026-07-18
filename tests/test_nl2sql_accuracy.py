@@ -14,6 +14,7 @@ TEST_QUERIES = [
     "Show cases with GPS coordinates nearby"
 ]
 
+
 def test_nl2sql_generates_valid_sql():
     with patch("functions.ai.quickml_client.QuickMLClient.chat") as mock_chat:
         mock_chat.return_value = {

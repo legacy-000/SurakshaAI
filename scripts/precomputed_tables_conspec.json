@@ -1,0 +1,151 @@
+{
+  "purpose": "Console-UI copy-paste spec. Anything marked 'auto' is created by Catalyst, not entered.",
+  "ProjectID": "55029000000013055",
+  "Environment": "Development (60076341598)",
+  "tables": [
+    {
+      "step": 1,
+      "table_name": "TrendSnapshot",
+      "TableDisplayName": "Trend Snapshot",
+      "columns_to_enter_in_form": [
+        {
+          "Column Name": "SnapshotKey",
+          "Data Type": "varchar",
+          "Max Length": "256",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "Payload",
+          "Data Type": "clob",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "UpdatedAt",
+          "Data Type": "datetime",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        }
+      ],
+      "auto_added_by_catalyst": ["ROWID"]
+    },
+    {
+      "step": 2,
+      "table_name": "HotspotSnapshot",
+      "TableDisplayName": "Hotspot Snapshot",
+      "columns_to_enter_in_form": [
+        {
+          "Column Name": "SnapshotKey",
+          "Data Type": "varchar",
+          "Max Length": "256",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "Payload",
+          "Data Type": "clob",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "UpdatedAt",
+          "Data Type": "datetime",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        }
+      ],
+      "auto_added_by_catalyst": ["ROWID"]
+    },
+    {
+      "step": 3,
+      "table_name": "ForecastResult",
+      "TableDisplayName": "Forecast Result",
+      "columns_to_enter_in_form": [
+        {
+          "Column Name": "SnapshotKey",
+          "Data Type": "varchar",
+          "Max Length": "256",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "Payload",
+          "Data Type": "clob",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "UpdatedAt",
+          "Data Type": "datetime",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        }
+      ],
+      "auto_added_by_catalyst": ["ROWID"]
+    },
+    {
+      "step": 4,
+      "table_name": "ResolvedEntity",
+      "TableDisplayName": "Resolved Entity",
+      "columns_to_enter_in_form": [
+        {
+          "Column Name": "SnapshotKey",
+          "Data Type": "varchar",
+          "Max Length": "256",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "Payload",
+          "Data Type": "clob",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "UpdatedAt",
+          "Data Type": "datetime",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        }
+      ],
+      "auto_added_by_catalyst": ["ROWID"]
+    },
+    {
+      "step": 5,
+      "table_name": "IPSScore",
+      "TableDisplayName": "IPS Score",
+      "columns_to_enter_in_form": [
+        {
+          "Column Name": "SnapshotKey",
+          "Data Type": "varchar",
+          "Max Length": "256",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "Payload",
+          "Data Type": "clob",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        },
+        {
+          "Column Name": "UpdatedAt",
+          "Data Type": "datetime",
+          "Is Mandatory": "yes",
+          "PII/ePHI": "no"
+        }
+      ],
+      "auto_added_by_catalyst": ["ROWID"]
+    }
+  ],
+  "post_create_validation": "Run `catalyst ds:export --table TrendSnapshot` (Development env). Same for the other 4 tables. Empty export with the column headers is the expected outcome pre-cron. After cron runs once, the export should show one row per table.",
+  "notes": [
+    "ROWID is auto-added by Catalyst. Do not enter it manually.",
+    "If your console shows 'longtext' instead of 'clob', pick 'longtext' — older docs use both names for the same SQL Server nvarchar(max) family.",
+    "All lowercase column names; _ is allowed, hyphen is not.",
+    "If the form rejects varchar without a length, set Max Length=256 explicitly.",
+    "Set Show in UI = yes for SnapshotKey and UpdatedAt (useful when debugging the cron).",
+    "All five tables go to the same project (SurakshaAI / Development)."
+  ]
+}

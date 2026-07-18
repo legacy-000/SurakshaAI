@@ -1,5 +1,6 @@
-import uuid, logging, json
-from typing import Optional
+import uuid
+import logging
+import json
 from models.dto import InvestigativeLeadDTO
 
 logger = logging.getLogger(__name__)
@@ -22,12 +23,21 @@ class LeadGenerator:
         return []
 
     def _load_case_data(self, case_master_id: int) -> dict:
-        """Load case details from Data Store for ML scoring."""
-        if not self._is_live():
+        """Load case details from Data Store for ML scoring.
+
+        ZCQL: no JOINs. CaseMaster has no DistrictID column — district is two
+        hops away via Unit.DistrictID. For ML scoring we only need the text
+        fields, so we skip the district lookup here (heuristic fallback path
+        doesn't use it). If district becomes needed: query CaseMaster for
+        PoliceStationID, then Unit WHERE UnitID=<id> for DistrictID, then
+        District WHERE DistrictID=<id> — guard each step, no IN ().
+        """
+        if not self._is_live() or not case_master_id:
             return {}
         try:
             res = self._db.execute_non_query(
-                f"SELECT CrimeNo, CrimeSubHead, BriedFacts, latitide, longitude, DistrictID FROM FirMaster WHERE CaseMasterID={case_master_id}"
+                f"SELECT CrimeNo, BriefFacts, latitude, longitude "
+                f"FROM CaseMaster WHERE CaseMasterID={int(case_master_id)} LIMIT 1"
             )
             if res.get("rows"):
                 return dict(zip(res["columns"], res["rows"][0]))
@@ -71,11 +81,10 @@ class LeadGenerator:
         results = []
         for lead_type, desc, evidence in leads:
             confidence_score, confidence_class = self._ml_confidence(case_data, lead_type)
-            # Fallback to heuristic if ML not available
             if not case_data:
                 confidence_score = round(0.6 + (case_master_id % 10) * 0.03, 2) if lead_type == "co_accused_link" else \
-                                   round(0.5 + (case_master_id % 7) * 0.04, 2) if lead_type == "location_pattern" else \
-                                   round(0.3 + (case_master_id % 5) * 0.05, 2)
+                    round(0.5 + (case_master_id % 7) * 0.04, 2) if lead_type == "location_pattern" else \
+                    round(0.3 + (case_master_id % 5) * 0.05, 2)
                 confidence_class = "high" if confidence_score >= 0.7 else "medium" if confidence_score >= 0.4 else "low"
 
             results.append(InvestigativeLeadDTO(
