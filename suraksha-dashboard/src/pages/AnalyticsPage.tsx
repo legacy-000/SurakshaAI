@@ -364,6 +364,11 @@ export const AnalyticsPage: React.FC = () => {
               </div>
             </div>
 
+            {hotspots.length > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px', textAlign: 'right' }}>
+                hotspots:{hotspots.length} filtered:{filteredHotspotClusters.length} types:{hotspotSummary.length} clusters:{filteredHotspotClusters.filter(h=>h.cluster_id).length}
+              </div>
+            )}
             <div className="grid-2">
               <div className="card">
                 <div className="card-header">{t('Hotspot Map', 'ಹಾಟ್‌ಸ್ಪಾಟ್ ನಕ್ಷೆ')}</div>
@@ -435,6 +440,11 @@ export const AnalyticsPage: React.FC = () => {
               <div className="card-header">
                 {isAll ? t('Monthly Trends by Type', 'ಮಾಸಿಕ ಪ್ರವೃತ್ತಿಗಳು') : `${t('Trend', 'ಪ್ರವೃತ್ತಿ')}: ${crimeTypeTab}`}
               </div>
+              {trends.length > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px', textAlign: 'right' }}>
+                  trends:{trends.length} periods:{allPeriods.length} types:{allCrimeTypes.length} filtered:{filteredTrends.length} merged:{mergedData.length}
+                </div>
+              )}
               {loadingTrends ? (
                 <div className="skeleton" style={{ width: '100%', height: 250, borderRadius: 8 }} />
               ) : (
@@ -457,6 +467,9 @@ export const AnalyticsPage: React.FC = () => {
             {demoYears.length > 0 && (
               <div className="card">
                 <div className="card-header">{t('Cases by Year', 'ವರ್ಷದ ಪ್ರಕಾರ ಪ್ರಕರಣಗಳು')}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px', textAlign: 'right' }}>
+                  records:{demoYears.length}
+                </div>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={(() => {
                     const yMap: Record<string, any> = {};
@@ -486,7 +499,7 @@ export const AnalyticsPage: React.FC = () => {
             {/* Demographics */}
             {demographics?._debug && (
               <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px', textAlign: 'right' }}>
-                v:{demographics._debug.v} a:{demographics._debug.a} c:{demographics._debug.c} cm:{demographics._debug.cm} map:{demographics._debug.map} v{demographics._v || '?'}
+                v:{demographics._debug.v} a:{demographics._debug.a} c:{demographics._debug.c} cm:{demographics._debug.cm} map:{demographics._debug.map} overlap:{demographics._debug.hits}/{demographics._debug.uniq_ids} miss:{demographics._debug.miss} v{demographics._v || '?'}
               </div>
             )}
             {demoError && (
