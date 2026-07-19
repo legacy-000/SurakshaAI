@@ -126,8 +126,8 @@ class ForecastScheduler:
 
     def _execute_job(self, name: str, request_dto: ForecastRequestDTO) -> Dict[str, Any]:
         """Execute a job and return a history record dict."""
-        from forecast.forecaster import Forecaster
-        forecaster = Forecaster()
+        from forecast.forecaster import build_forecaster
+        forecaster = build_forecaster()
 
         db = None
         try:

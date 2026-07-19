@@ -103,7 +103,7 @@ class HotspotDetector:
         if not getattr(db, "is_connected", False):
             return []
         res = db.execute_non_query(
-            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 1000"
+            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 300"
         )
         if "error" in res:
             return []
@@ -121,79 +121,89 @@ class HotspotDetector:
     def _legacy_repo_from_db(self, db) -> CaseRepository:
         return ZCQLCaseRepository(db) if isinstance(db, DatastoreClient) else None
 
-    def detect(self, req: HotspotRequestDTO, db=None) -> HotspotResultDTO:
+    def detect(self, req: HotspotRequestDTO, db=None, repo=None) -> HotspotResultDTO:
         query_id = str(uuid.uuid4())
         cases_without_gps = 0
         points: list[tuple] = []
-        repo = self._repo or self._legacy_repo_from_db(db)
+        repo = repo or self._repo or self._legacy_repo_from_db(db)
 
         station_ids = self._district_station_ids(db, req.district_id)
 
         if repo is not None:
-            try:
-                if not station_ids:
-                    return HotspotResultDTO(
-                        query_id=query_id, clusters=[],
-                        cases_without_gps=cases_without_gps, total_cases_analyzed=0,
-                        algorithm="DBSCAN",
-                        algorithm_params=self._fmt_params(req.eps_km, req.min_cases),
-                    )
+            rows = repo.fetch_geo_points(
+                station_ids,
+                getattr(req, "crime_sub_head_ids", None),
+                getattr(req, "date_from", None),
+                getattr(req, "date_to", None),
+            )
+            if not rows and station_ids:
                 rows = repo.fetch_geo_points(
-                    station_ids,
+                    [],
                     getattr(req, "crime_sub_head_ids", None),
                     getattr(req, "date_from", None),
                     getattr(req, "date_to", None),
                 )
-                for r in rows:
-                    try:
-                        lat = float(r["latitude"])
-                        lng = float(r["longitude"])
-                        rid = int(r.get("CaseMasterID") or 0)
-                        cat = str(r.get("CaseCategoryID", "Unknown"))
-                        points.append((lat, lng, rid, cat))
-                    except (KeyError, TypeError, ValueError):
-                        cases_without_gps += 1
-            except Exception:
-                pass
+            for r in rows:
+                try:
+                    lat = float(r["latitude"])
+                    lng = float(r["longitude"])
+                    rid = int(r.get("CaseMasterID") or 0)
+                    cat = str(r.get("CaseCategoryID", "Unknown"))
+                    points.append((lat, lng, rid, cat))
+                except (KeyError, TypeError, ValueError):
+                    cases_without_gps += 1
         elif db is not None and getattr(db, "is_connected", False):
-            try:
-                if not station_ids:
-                    return HotspotResultDTO(
-                        query_id=query_id, clusters=[],
-                        cases_without_gps=cases_without_gps, total_cases_analyzed=0,
-                        algorithm="DBSCAN",
-                        algorithm_params=self._fmt_params(req.eps_km, req.min_cases),
-                    )
-                where = f"WHERE PoliceStationID IN ({_csv_ints(station_ids)})"
-                if getattr(req, "crime_sub_head_ids", None):
-                    where += f" AND CrimeMinorHeadID IN ({_csv_ints(req.crime_sub_head_ids)})"
-                if getattr(req, "date_from", None):
-                    where += f" AND CrimeRegisteredDate >= '{req.date_from}'"
-                if getattr(req, "date_to", None):
-                    where += f" AND CrimeRegisteredDate <= '{req.date_to}'"
-                sql = f"SELECT latitude, longitude, CaseMasterID, CaseCategoryID FROM CaseMaster {where}"
-                res = db.execute_non_query(sql)
-                if "error" not in res and (res.get("row_count", 0) > 0 or res.get("rows")):
-                    cols = res["columns"]
-                    lat_idx = cols.index("latitude") if "latitude" in cols else 0
-                    lng_idx = cols.index("longitude") if "longitude" in cols else 1
-                    rid_idx = cols.index("CaseMasterID") if "CaseMasterID" in cols else (
-                        cols.index("ROWID") if "ROWID" in cols else 2
-                    )
-                    cat_idx = cols.index("CaseCategoryID") if "CaseCategoryID" in cols else 3
-                    for row in res["rows"]:
-                        lat_val = row[lat_idx] if lat_idx < len(row) else None
-                        lng_val = row[lng_idx] if lng_idx < len(row) else None
-                        try:
-                            lat = float(lat_val)
-                            lng = float(lng_val)
-                            rid = int(row[rid_idx]) if rid_idx < len(row) and row[rid_idx] is not None else 0
-                            cat = str(row[cat_idx]) if cat_idx < len(row) and row[cat_idx] is not None else "Unknown"
-                            points.append((lat, lng, rid, cat))
-                        except (TypeError, ValueError, IndexError):
-                            cases_without_gps += 1
-            except Exception:
-                pass
+            if not station_ids:
+                return HotspotResultDTO(
+                    query_id=query_id, clusters=[],
+                    cases_without_gps=cases_without_gps, total_cases_analyzed=0,
+                    algorithm="DBSCAN",
+                    algorithm_params=self._fmt_params(req.eps_km, req.min_cases),
+                )
+            # Phase 1: CrimeSubHeadID → CrimeHeadName
+            sid_name: dict[str, str] = {}
+            sr = db.execute_non_query(
+                "SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead")
+            if "error" not in sr:
+                sc = sr.get("columns", [])
+                for row in sr.get("rows", []):
+                    d = dict(zip(sc, row))
+                    k = str(d.get("CrimeSubHeadID", ""))
+                    v = str(d.get("CrimeHeadName", ""))
+                    if k and v:
+                        sid_name[k] = v
+
+            # Phase 2: Fetch geo points with CrimeMinorHeadID
+            where_parts = [f"PoliceStationID IN ({_csv_ints(station_ids)})"]
+            if getattr(req, "crime_sub_head_ids", None):
+                where_parts.append(f"CrimeMinorHeadID IN ({_csv_ints(req.crime_sub_head_ids)})")
+            if getattr(req, "date_from", None):
+                where_parts.append(f"CrimeRegisteredDate >= '{req.date_from}'")
+            if getattr(req, "date_to", None):
+                where_parts.append(f"CrimeRegisteredDate <= '{req.date_to}'")
+            sql = (
+                "SELECT latitide, longitude, ROWID, CrimeMinorHeadID FROM CaseMaster "
+                "WHERE " + " AND ".join(where_parts)
+            )
+            res = db.execute_non_query(sql)
+            if "error" not in res and (res.get("row_count", 0) > 0 or res.get("rows")):
+                cols = res["columns"]
+                lat_idx = cols.index("latitide") if "latitide" in cols else 0
+                lng_idx = cols.index("longitude") if "longitude" in cols else 1
+                rid_idx = cols.index("ROWID") if "ROWID" in cols else 2
+                sid_idx = cols.index("CrimeMinorHeadID") if "CrimeMinorHeadID" in cols else 3
+                for row in res["rows"]:
+                    lat_val = row[lat_idx] if lat_idx < len(row) else None
+                    lng_val = row[lng_idx] if lng_idx < len(row) else None
+                    try:
+                        lat = float(lat_val)
+                        lng = float(lng_val)
+                        rid = int(row[rid_idx]) if rid_idx < len(row) and row[rid_idx] is not None else 0
+                        sid = str(row[sid_idx]) if sid_idx < len(row) and row[sid_idx] is not None else ""
+                        cat = sid_name.get(sid, "Unknown")
+                        points.append((lat, lng, rid, cat))
+                    except (TypeError, ValueError, IndexError):
+                        cases_without_gps += 1
 
         total = len(points) + cases_without_gps
 
@@ -211,32 +221,13 @@ class HotspotDetector:
                     case_ids=cr["case_ids"],
                 ))
         else:
-            clusters = [
-                HotspotClusterDTO(
-                    cluster_id=1,
-                    centroid_lat=12.97,
-                    centroid_lng=77.59,
-                    case_count=8,
-                    radius_km=1.2,
-                    crime_type="Theft",
-                    case_ids=[101, 104, 107, 110, 113, 116, 119, 122],
-                ),
-                HotspotClusterDTO(
-                    cluster_id=2,
-                    centroid_lat=12.93,
-                    centroid_lng=77.62,
-                    case_count=5,
-                    radius_km=0.8,
-                    crime_type="Assault",
-                    case_ids=[201, 204, 207, 210, 213],
-                ),
-            ]
+            clusters = []
 
         return HotspotResultDTO(
             query_id=query_id,
             clusters=clusters,
             cases_without_gps=cases_without_gps,
-            total_cases_analyzed=total if total > 0 else 100,
+            total_cases_analyzed=total,
             algorithm="DBSCAN",
             algorithm_params=self._fmt_params(req.eps_km, req.min_cases),
         )
@@ -253,7 +244,7 @@ class HotspotDetector:
         per_district: list[dict] = []
         for did in district_ids[:50]:
             req = HotspotRequestDTO(district_id=did)
-            res = self.detect(req, db=db)
+            res = self.detect(req, repo=repo, db=db)
             per_district.append({
                 "district_id": did,
                 "clusters": [{"cluster_id": c.cluster_id,
@@ -275,7 +266,7 @@ class HotspotDetector:
     def _all_district_ids(db: DatastoreClient) -> list[int]:
         if not db.is_connected:
             return []
-        res = db.execute_non_query("SELECT DistrictID FROM DistrictMaster LIMIT 1000")
+        res = db.execute_non_query("SELECT DistrictID FROM District LIMIT 300")
         if "error" in res or not res.get("rows"):
             return []
         cols = res.get("columns", [])

@@ -1,5 +1,5 @@
 from forecast.alert_engine import AlertEngine
-from forecast.forecaster import Forecaster
+from forecast.forecaster import build_forecaster
 from models.dto import ForecastRequestDTO, EarlyWarningAlertDTO
 import sys
 import os
@@ -10,27 +10,27 @@ os.environ.setdefault("PYTHONPATH", BASE)
 
 class TestForecaster:
     def test_forecast_returns_run_id(self):
-        fc = Forecaster()
+        fc = build_forecaster()
         req = ForecastRequestDTO(district_id=18, crime_sub_head_id=10)
         result = fc.forecast(req)
         assert result.run_id is not None
-        assert result.model in ("Prophet v1.0", "SeasonalNaive v1", "ARIMA(1,0,1)")
+        assert result.model in ("SeasonalNaive v1", "Prophet", "ARIMA(1,0,1)")
 
     def test_forecast_horizon_matches_request(self):
-        fc = Forecaster()
+        fc = build_forecaster()
         req = ForecastRequestDTO(district_id=18, crime_sub_head_id=10, forecast_horizon_days=30)
         result = fc.forecast(req)
         assert len(result.forecast) == 30
 
     def test_forecast_contains_expected_metrics(self):
-        fc = Forecaster()
+        fc = build_forecaster()
         req = ForecastRequestDTO(district_id=18, crime_sub_head_id=10)
         result = fc.forecast(req)
         assert "mae" in result.metrics
         assert "rmse" in result.metrics
 
     def test_forecast_data_points_have_bounds(self):
-        fc = Forecaster()
+        fc = build_forecaster()
         req = ForecastRequestDTO(district_id=18, crime_sub_head_id=10, forecast_horizon_days=5)
         result = fc.forecast(req)
         for dp in result.forecast:

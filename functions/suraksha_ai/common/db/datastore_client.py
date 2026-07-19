@@ -24,11 +24,20 @@ class DatastoreClient:
             raw = self._catalyst_app.zcql().execute_query(sql)
             if not raw:
                 return {"status": "success", "row_count": 0, "columns": [], "rows": [], "response": str(raw)}
-            # ZCQL returns: [{"TableName": {"col1": "val1", "col2": "val2", ...}}, ...]
-            inner = list(raw[0].values())[0] if isinstance(raw[0], dict) else {}
-            cols = list(inner.keys())
-            vals = [list(list(r.values())[0].values()) for r in raw if isinstance(r, dict) and r]
-            return {"status": "success", "row_count": len(vals), "columns": cols, "rows": vals, "response": str(raw)}
+            # ZCQL returns: [{"Table1": {"c1": "v1", ...}, "Table2": {"c2": "v2", ...}}, ...]
+            # Merge columns from ALL table entries (handles JOINs)
+            cols = []
+            if isinstance(raw[0], dict):
+                for td in raw[0].values():
+                    cols.extend(td.keys())
+            rows = []
+            for r in raw:
+                vals = []
+                if isinstance(r, dict):
+                    for td in r.values():
+                        vals.extend(td.values())
+                rows.append(vals)
+            return {"status": "success", "row_count": len(rows), "columns": cols, "rows": rows, "response": str(raw)}
         except Exception as e:
             logger.error("ZCQL execute failed: %s", e)
             return {"error": "DB_EXEC_FAILED", "message": str(e)}

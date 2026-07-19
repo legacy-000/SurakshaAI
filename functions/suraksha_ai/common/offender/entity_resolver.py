@@ -116,13 +116,14 @@ def _serialize_groups(groups: list[dict]) -> list[dict]:
     return out
 
 
-def build_entity_resolver() -> "EntityResolver":
-    return EntityResolver(FuzzyEntityResolutionStrategy())
+def build_entity_resolver(store=None) -> "EntityResolver":
+    return EntityResolver(FuzzyEntityResolutionStrategy(), store=store)
 
 
 class EntityResolver:
-    def __init__(self, strategy: EntityResolutionStrategy):
+    def __init__(self, strategy: EntityResolutionStrategy, store=None):
         self.strategy = strategy
+        self._store = store
 
     @property
     def strategy_name(self) -> str:
@@ -134,9 +135,9 @@ class EntityResolver:
     def compute_all_and_store(self, catalyst_app) -> dict:
         db = DatastoreClient(catalyst_app)
         repo = ZCQLAccusedRepository(db)
-        store = CatalystRowPrecomputedStore(db)
+        store = self._store or CatalystRowPrecomputedStore(db)
 
-        rows = repo.fetch_all(limit=10000)
+        rows = repo.fetch_all(limit=300)
         if not rows:
             return {"status": "skipped", "reason": "empty table"}
         groups = self.strategy.resolve(rows)
@@ -150,5 +151,4 @@ class EntityResolver:
         return {"status": "ok", "groups": len(groups)}
 
     def load_all_precomputed(self) -> Optional[dict]:
-        # Inline so a serve-side caller doesn't need to inject the store.
-        return self._load_fn() if hasattr(self, "_load_fn") else None
+        return self._store.load_entity_resolution() if hasattr(self, "_store") and self._store else None

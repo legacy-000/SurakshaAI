@@ -21,12 +21,12 @@ import traceback
 
 from flask import Request, jsonify
 
-from common.main_handler import SurakshaAIHandler, register_actions, _ctx
-from common.models.dto import UserContextDTO
-
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 sys.path.insert(0, os.path.join(BASE, "common"))
+
+from common.main_handler import SurakshaAIHandler, register_actions, _ctx
+from common.models.dto import UserContextDTO
 
 logger = logging.getLogger()
 
@@ -38,6 +38,7 @@ _DB_REQUIRED_ACTIONS = frozenset({
     "get_forecast", "get_offender_profile", "get_network",
     "get_dashboard_kpis", "get_alerts", "create_offender_profile",
     "import_table", "run_sql", "describe_table",
+    "debug_analytics", "run_analytics", "get_socio_demographics",
     "tse_schema_tables", "tse_schema_columns", "tse_constraint_check",
     "tse_system_metrics", "tse_active_sessions", "tse_index_stats",
     "tse_error_logs", "tse_cache_stats", "tse_auth_tokens", "tse_validate_sql",
@@ -47,7 +48,7 @@ _DB_REQUIRED_ACTIONS = frozenset({
 
 # Actions exempt from the RBAC pre-flight (login obviously can't be RBAC-gated
 # before the user has a role).
-_RBAC_EXEMPT_ACTIONS = frozenset({"login"})
+_RBAC_EXEMPT_ACTIONS = frozenset({"login", "run_analytics", "debug_analytics"})
 
 
 def _maybe_init_app() -> object | None:
@@ -84,13 +85,13 @@ def handler(request: Request):
     handler_ = SurakshaAIHandler(app)
     actions = register_actions(handler_)
 
-    try:
-        body = request.get_json(force=True, silent=True) or {}
-    except Exception as exc:
-        logger.error("Invalid JSON body: %s", exc)
-        return jsonify({"error": "INVALID_JSON", "message": str(exc)}), 400
+    body = (request.get_json(force=True, silent=True)
+            or request.form.to_dict()
+            or {})
 
     action = body.get("action", "") or ""
+    if not action and request.method == "GET":
+        action = "run_analytics"
     params = body.get("params", {}) or {}
     user_context = _parse_user_context(body)
 

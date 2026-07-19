@@ -142,3 +142,38 @@ make run-frontend
 4. **Static Frontend**: Next.js is built with `output: 'export'` for static deployment.
 5. **Environment Variables**: Use `.env.example` as reference; populate with your Catalyst project credentials.
 
+---
+
+## Current Status (semifinal-2)
+
+### Deployed
+- **Backend**: Catalyst serverless function at `suraksha_ai` endpoint
+- **Analytics Cron**: Daily cron job to refresh stats, trends, hotspots, forecasts
+- **Frontend**: React dashboard hosted on Catalyst Web Client Hosting
+
+### Analytics Dashboard — What Works
+- **Overview tab**: Summary stats load and display
+- **Trends tab**: Crime trend charts render from aggregated daily counts
+- **Hotspots tab**: Geographic hotspot clusters shown on map
+- **Socio-Demographics tab ("All Types")**: Pie charts and bar charts show distribution of victims, accused, complainants across age/gender/occupation correctly
+- **Cache busting**: `_v` version parameter forces fresh API data after deploy
+- **Debug overlay**: Shows record counts from the API response (victims, accused, complainants, CaseMaster rows, map entries)
+
+### Known Issues
+
+1. **Individual Crime Type Tabs show 0 records on Socio-Demographics**
+   - The "All Types" tab correctly shows data, but clicking specific crime type tabs (e.g., Murder, Theft) shows zero records
+   - Root cause unknown — likely `CaseMasterID` foreign key in Victim/Accused tables does not match `ROWID` in CaseMaster, or crime_type naming differs between tables
+   - Debug output includes `uniq_ids`, `hits`, `miss`, `cm_keys`, and `v_ids` fields to diagnose the mismatch
+
+2. **ZCQL `CaseMasterID` column returns 0 rows**
+   - `SELECT CaseMasterID FROM CaseMaster` returns empty result set (column doesn't exist in that table despite being in schema)
+   - Workaround: using `ROWID` (Catalyst internal ID) instead. If Victim/Accused records store the DB-generated ID rather than ROWID, the mapping won't match
+
+3. **No caching layer active**
+   - `cache_get`/`cache_set` were never imported into `main_handler.py` — every API call does a full re-fetch from Data Store (~7 queries)
+   - The `_cached` wrapper catches `NameError` silently, so caching degrades to no-op without errors
+
+4. **LIMIT clause on all queries**
+   - Hardcoded LIMIT 300 on main tables, 500 on reference tables — may miss data beyond those counts
+

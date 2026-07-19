@@ -38,7 +38,7 @@ class OffenderProfiler:
     def _legacy_load_accused_records(self, accused_name: str):
         cols, rows = self._run_legacy(
             "SELECT AccusedMasterID, CaseMasterID, AccusedName, AgeYear, GenderID, PersonID "
-            f"FROM Accused WHERE AccusedName = {_esc(accused_name)} LIMIT 1000"
+            f"FROM Accused WHERE AccusedName = {_esc(accused_name)} LIMIT 300"
         )
         if not rows:
             return [], [], []
@@ -70,7 +70,7 @@ class OffenderProfiler:
             return [], [], []
         cm_cols, cm_rows = self._run_legacy(
             "SELECT CaseMasterID, CrimeNo, CrimeRegisteredDate, CrimeMinorHeadID, CaseStatusID "
-            f"FROM CaseMaster WHERE CaseMasterID IN ({', '.join(str(int(i)) for i in case_ids)}) LIMIT 1000"
+            f"FROM CaseMaster WHERE CaseMasterID IN ({', '.join(str(int(i)) for i in case_ids)}) LIMIT 300"
         )
         cm_by_id = {}
         minor_ids = set()
@@ -88,7 +88,7 @@ class OffenderProfiler:
             m_in = ", ".join(str(int(i)) for i in minor_ids)
             h_cols, h_rows = self._run_legacy(
                 f"SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead "
-                f"WHERE CrimeSubHeadID IN ({m_in}) LIMIT 1000"
+                f"WHERE CrimeSubHeadID IN ({m_in}) LIMIT 300"
             )
             for row in h_rows:
                 d = self._row_dict(h_cols, row)
@@ -98,7 +98,7 @@ class OffenderProfiler:
             s_in = ", ".join(str(int(i)) for i in status_ids)
             s_cols, s_rows = self._run_legacy(
                 f"SELECT CaseStatusID, CaseStatusName FROM CaseStatusMaster "
-                f"WHERE CaseStatusID IN ({s_in}) LIMIT 1000"
+                f"WHERE CaseStatusID IN ({s_in}) LIMIT 300"
             )
             for row in s_rows:
                 d = self._row_dict(s_cols, row)

@@ -81,6 +81,8 @@ class SurakshaAIHandler:
         self.tse = TSEHandler(self._db_client, self._catalyst_app)
 
         # Commander + agents
+        self._build_container()
+
         self.commander = Commander(self.evidence_validator)
         self.commander.register_agent("database_query", DatabaseAgent(self.chat, self._db_client))
         self.commander.register_agent("trend_analysis", TrendAgent(self.trends))
@@ -107,6 +109,20 @@ class SurakshaAIHandler:
     @property
     def is_live(self):
         return self._catalyst_app is not None
+
+    def _build_container(self):
+        """Wire repo abstractions into services that already accept them (Part E.5 DIP)."""
+        from common.repositories.zcql_impl import (
+            ZCQLCaseRepository, ZCQLAccusedRepository, CatalystRowPrecomputedStore,
+        )
+        from common.offender.entity_resolver import build_entity_resolver
+        cr = ZCQLCaseRepository(self._db_client)
+        ar = ZCQLAccusedRepository(self._db_client)
+        st = CatalystRowPrecomputedStore(self._db_client)
+        self.trends = TrendAnalyzer(case_repo=cr, store=st)
+        self.hotspots = HotspotDetector(case_repo=cr, store=st)
+        self.offender_profiler = OffenderProfiler(accused_repo=ar)
+        self.resolver = build_entity_resolver(store=st)
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +207,7 @@ def h_get_forecast(c):
             cat = p.get("category", "Theft")
         else:
             cat = item["label"]
-        res = c["handler"].forecaster.forecast(req)
+        res = c["handler"].forecaster.forecast(req, db=c["handler"]._db_client)
         pts = [{"date": p.date, "predicted": p.predicted, "upper": p.upper,
                 "lower": p.lower, "category": cat,
                 "district": item["label"] if item["key"] == "district" else p.get("district", "Bengaluru Urban")}
@@ -235,27 +251,207 @@ def h_create_offender_profile(c):
     return c["handler"]._db_client.insert_bulk_rows("Accused", [row_data])
 
 
+def _cached(key: str):
+    try:
+        return cache_get(key)
+    except Exception:
+        return None
+
+
+def _store(key: str, data):
+    try:
+        cache_set(key, data)
+    except Exception:
+        pass
+
+
 def h_get_trends(c):
-    types = ['Theft', 'Robbery', 'Assault', 'Burglary', 'Cyber Crime']
+    cached = _cached("trends")
+    if cached is not None:
+        return cached
+    db = c["handler"]._db_client
+
+    def _fetch_map(sql: str, key_col: str, val_col: str) -> dict:
+        m = {}
+        res = db.execute_non_query(sql)
+        if "error" not in res:
+            cols = res.get("columns", [])
+            for row in res.get("rows", []):
+                d = dict(zip(cols, row))
+                k = str(d.get(key_col, ""))
+                v = str(d.get(val_col, ""))
+                if k and v:
+                    m[k] = v
+        return m
+
+    sid_name = _fetch_map(
+        "SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead",
+        "CrimeSubHeadID", "CrimeHeadName")
+
+    res = db.execute_non_query(
+        "SELECT CrimeRegisteredDate, CrimeMinorHeadID FROM CaseMaster "
+        "WHERE CrimeRegisteredDate IS NOT NULL LIMIT 300")
+    monthly: dict[str, dict[str, int]] = {}
+    if "error" not in res:
+        cols = res.get("columns", [])
+        for row in res.get("rows", []):
+            d = dict(zip(cols, row))
+            sid = str(d.get("CrimeMinorHeadID", ""))
+            ct = sid_name.get(sid, "Unknown")
+            dt = str(d.get("CrimeRegisteredDate", ""))[:7]
+            if len(dt) < 7:
+                continue
+            m = monthly.setdefault(dt, {})
+            m[ct] = m.get(ct, 0) + 1
+    sorted_months = sorted(monthly)
     points = []
-    for t in types:
-        req = CrimeTrendRequestDTO(crime_sub_head_id=1, district_id=None,
-                                    start_date=None, end_date=None)
-        res = c["handler"].trends.analyze(req)
-        for p in res.aggregation:
-            points.append({"period": p["period"], "count": p["count"],
-                            "pct_change": p["pct_change"], "crime_type": t})
-    return points
+    for i, m in enumerate(sorted_months):
+        for ct, cnt in monthly[m].items():
+            prev = monthly.get(sorted_months[i - 1], {}).get(ct) if i > 0 else None
+            pct = round((cnt - prev) / prev * 100, 1) if prev and prev > 0 else None
+            points.append({"period": m, "count": cnt, "pct_change": pct, "crime_type": ct})
+    result = {"monthly": points}
+    _store("trends", result)
+    return result
+
+
+def h_get_socio_demographics(c):
+    try:
+        return _h_get_socio_demographics(c)
+    except Exception as e:
+        import traceback
+        logging.getLogger().error("demographics error: %s\n%s", e, traceback.format_exc())
+        return {"error": str(e), "_v": "5"}
+
+
+def _h_get_socio_demographics(c):
+    cached = _cached("socio_demographics")
+    if cached is not None and cached.get("_v") == "5":
+        return cached
+    db = c["handler"]._db_client
+    out: dict = {"_v": "5"}
+
+    def _fetch_map(sql, kcol, vcol):
+        m = {}
+        res = db.execute_non_query(sql)
+        if "error" not in res:
+            cols = res.get("columns", [])
+            for row in res.get("rows", []):
+                d = dict(zip(cols, row))
+                k = d.get(kcol)
+                if k is not None:
+                    m[str(k)] = str(d.get(vcol, ""))
+        return m
+
+    out["occupations"] = _fetch_map(
+        "SELECT OccupationID, OccupationName FROM OccupationMaster LIMIT 500", "OccupationID", "OccupationName")
+    out["religions"] = _fetch_map(
+        "SELECT ReligionID, ReligionName FROM ReligionMaster LIMIT 500", "ReligionID", "ReligionName")
+    sid_name = _fetch_map(
+        "SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead LIMIT 500", "CrimeSubHeadID", "CrimeHeadName")
+
+    def _fmt(res):
+        if "error" in res:
+            return []
+        cols = res.get("columns", [])
+        return [dict(zip(cols, row)) for row in res.get("rows", [])]
+
+    def _id(v):
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if s.endswith(".0"):
+            s = s[:-2]
+        return s
+
+    # Fetch records with LIMIT on every query
+    v_raw = _fmt(db.execute_non_query(
+        "SELECT CaseMasterID, AgeYear, GenderID, VictimPolice FROM Victim WHERE AgeYear IS NOT NULL LIMIT 300"))
+    a_raw = _fmt(db.execute_non_query(
+        "SELECT CaseMasterID, AgeYear, GenderID FROM Accused WHERE AgeYear IS NOT NULL LIMIT 300"))
+    c_raw = _fmt(db.execute_non_query(
+        "SELECT CaseMasterID, AgeYear, GenderID, OccupationID, ReligionID FROM ComplainantDetails LIMIT 300"))
+
+    # CaseMaster scan — ROWID is the primary key (CaseMasterID in other tables is foreign key to ROWID)
+    cm_raw = db.execute_non_query(
+        "SELECT ROWID, CrimeMinorHeadID, CrimeRegisteredDate FROM CaseMaster LIMIT 300")
+    cm_rows = _fmt(cm_raw)
+
+    # Build ROWID → CrimeMinorHeadID map + cases_by_year
+    cm_map: dict[str, str] = {}
+    years: dict[str, dict[str, int]] = {}
+    for d in cm_rows:
+        cid = _id(d.get("ROWID"))
+        mid = _id(d.get("CrimeMinorHeadID", ""))
+        if cid and mid:
+            cm_map[cid] = mid
+        dt = str(d.get("CrimeRegisteredDate", ""))
+        if dt:
+            y = dt[:4] if len(dt) >= 4 else "unknown"
+            ct = sid_name.get(mid, "Unknown")
+            yy = years.setdefault(y, {})
+            yy[ct] = yy.get(ct, 0) + 1
+
+    # Check overlap: which CaseMasterID values from records exist in the cm_map
+    v_ids = {_id(r.get("CaseMasterID", "")) for r in v_raw if r.get("CaseMasterID")}
+    a_ids = {_id(r.get("CaseMasterID", "")) for r in a_raw if r.get("CaseMasterID")}
+    c_ids = {_id(r.get("CaseMasterID", "")) for r in c_raw if r.get("CaseMasterID")}
+    all_victim_ids = v_ids | a_ids | c_ids
+    hits = len(all_victim_ids & set(cm_map.keys()))
+    missed = all_victim_ids - set(cm_map.keys())
+    
+    out["_debug"] = {
+        "v": len(v_raw), "a": len(a_raw), "c": len(c_raw), "cm": len(cm_rows), "map": len(cm_map),
+        "uniq_ids": len(all_victim_ids), "hits": hits, "miss": len(missed),
+        "cm_keys": list(set(cm_map.keys()))[:3], "v_ids": list(all_victim_ids)[:3]
+    }
+
+    # Add crime_type to each record
+    def _build(rows, cm_key):
+        for r in rows:
+            cid = _id(r.get(cm_key, ""))
+            mid = cm_map.get(cid, "")
+            r["crime_type"] = sid_name.get(mid, "Unknown")
+        return rows
+
+    out["victims"] = {"total": len(v_raw), "records": _build(v_raw, "CaseMasterID")}
+    out["accused"] = {"total": len(a_raw), "records": _build(a_raw, "CaseMasterID")}
+    out["complainants"] = {"total": len(c_raw), "records": _build(c_raw, "CaseMasterID")}
+    out["cases_by_year"] = [
+        {"year": y, "crime_type": ct, "count": c}
+        for y in sorted(years) for ct, c in sorted(years[y].items())
+    ]
+
+    _store("socio_demographics", out)
+    return out
 
 
 def h_get_hotspots(c):
-    req = HotspotRequestDTO(district_id=c["params"].get("district_id", 1),
-                             crime_sub_head_id=None, eps_km=1.0, min_cases=5)
-    res = c["handler"].hotspots.detect(req)
-    return [{"cluster_id": c.cluster_id, "centroid_lat": c.centroid_lat,
-             "centroid_lng": c.centroid_lng, "case_count": c.case_count,
-             "radius_km": c.radius_km, "crime_type": c.crime_type}
-            for c in res.clusters]
+    try:
+        return _h_get_hotspots(c)
+    except Exception as e:
+        import traceback
+        logging.getLogger().error("hotspots error: %s\n%s", e, traceback.format_exc())
+        return {"error": str(e)}
+
+
+def _h_get_hotspots(c):
+    p = c["params"]
+    did = p.get("district_id", 1)
+    eps = float(p.get("eps_km", 20.0))
+    mc = int(p.get("min_cases", 3))
+    cache_key = f"hotspots:{did}:{eps}:{mc}"
+    cached = _cached(cache_key)
+    if cached is not None:
+        return cached
+    req = HotspotRequestDTO(district_id=did, eps_km=eps, min_cases=mc)
+    res = c["handler"].hotspots.detect(req, db=c["handler"]._db_client)
+    result = [{"cluster_id": c.cluster_id, "centroid_lat": c.centroid_lat,
+               "centroid_lng": c.centroid_lng, "case_count": c.case_count,
+               "radius_km": c.radius_km, "crime_type": c.crime_type}
+              for c in res.clusters]
+    _store(cache_key, result)
+    return result
 
 
 def h_get_network(c):
@@ -268,7 +464,7 @@ def h_get_network(c):
 
 
 def h_get_dashboard_kpis(c):
-    stats = c["handler"].stats.get_dashboard_stats()
+    stats = c["handler"].stats.get_dashboard_stats(db=c["handler"]._db_client)
     return [
         {'label': 'Total FIRs', 'value': f"{stats.total_cases:,}", 'change': '+12.4%', 'icon': 'FileText'},
         {'label': 'Active Cases', 'value': f"{stats.pending_cases:,}", 'change': '-8.2%', 'icon': 'Activity'},
@@ -708,6 +904,32 @@ def h_tse_validate_sql(c):
     return c["handler"].tse.validate_sql(sql)
 
 
+def h_debug_analytics(c):
+    from common.db.datastore_client import DatastoreClient
+    db = DatastoreClient(c["handler"]._catalyst_app)
+    return {"connected": db.is_connected, "msg": "ok"}
+
+
+def h_run_analytics(c):
+    """Run all 4 precompute phases: trends, hotspots, forecast, entity_resolution."""
+    app = c["handler"]._catalyst_app
+    results = {}
+    phases = [
+        ("trends", lambda: c["handler"].trends.compute_all_and_store(app)),
+        ("hotspots", lambda: c["handler"].hotspots.compute_all_and_store(app)),
+        ("forecast", lambda: c["handler"].forecaster.compute_all_and_store(app)),
+        ("entity_resolution", lambda: c["handler"].resolver.compute_all_and_store(app)),
+    ]
+    for name, fn in phases:
+        try:
+            out = fn()
+            results[name] = ("ok", out)
+        except Exception as e:
+            results[name] = ("error", str(e))
+            logging.getLogger(__name__).error("analytics phase %s failed: %s", name, e)
+    return results
+
+
 def register_actions(handler):
     """Returns a mapping action-name → callable.
 
@@ -792,6 +1014,9 @@ def register_actions(handler):
         "tse_cache_stats": h_tse_cache_stats,
         "tse_auth_tokens": h_tse_auth_tokens,
         "tse_validate_sql": h_tse_validate_sql,
+        "debug_analytics": h_debug_analytics,
+        "run_analytics": h_run_analytics,
+        "get_socio_demographics": h_get_socio_demographics,
     }
 
     def _wrap(name, fn):

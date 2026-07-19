@@ -30,12 +30,12 @@ class ZCQLCaseRepository(CaseRepository):
         crime_sub_head_ids: Optional[Iterable[int]],
         date_from: Optional[str],
         date_to: Optional[str],
-        limit: int = 5000,
+        limit: int = 300,
     ) -> list[dict]:
         station_ids = list(station_ids or [])
-        if not station_ids:
-            return []
-        where = [f"PoliceStationID IN ({_csv_ints(station_ids)})"]
+        where = []
+        if station_ids:
+            where.append(f"PoliceStationID IN ({_csv_ints(station_ids)})")
         if crime_sub_head_ids:
             sub = list(crime_sub_head_ids)
             if sub:
@@ -44,9 +44,9 @@ class ZCQLCaseRepository(CaseRepository):
             where.append(f"CrimeRegisteredDate >= {_esc(date_from)}")
         if date_to:
             where.append(f"CrimeRegisteredDate <= {_esc(date_to)}")
+        where_sql = " WHERE " + " AND ".join(where) if where else ""
         sql = (
-            "SELECT CrimeRegisteredDate, ROWID FROM CaseMaster WHERE "
-            + " AND ".join(where)
+            "SELECT CrimeRegisteredDate, ROWID FROM CaseMaster" + where_sql
             + f" LIMIT {int(limit)}"
         )
         res = self._db.execute_non_query(sql)
@@ -60,36 +60,59 @@ class ZCQLCaseRepository(CaseRepository):
         crime_sub_head_ids: Optional[Iterable[int]],
         date_from: Optional[str],
         date_to: Optional[str],
-        limit: int = 10000,
+        limit: int = 300,
     ) -> list[dict]:
         station_ids = list(station_ids or [])
-        if not station_ids:
-            return []
-        where = [f"PoliceStationID IN ({_csv_ints(station_ids)})"]
+        conditions = []
+        if station_ids:
+            conditions.append(f"PoliceStationID IN ({_csv_ints(station_ids)})")
         if crime_sub_head_ids:
             sub = list(crime_sub_head_ids)
             if sub:
-                where.append(f"CrimeMinorHeadID IN ({_csv_ints(sub)})")
+                conditions.append(f"CrimeMinorHeadID IN ({_csv_ints(sub)})")
         if date_from:
-            where.append(f"CrimeRegisteredDate >= {_esc(date_from)}")
+            conditions.append(f"CrimeRegisteredDate >= {_esc(date_from)}")
         if date_to:
-            where.append(f"CrimeRegisteredDate <= {_esc(date_to)}")
+            conditions.append(f"CrimeRegisteredDate <= {_esc(date_to)}")
+        where_sql = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+        # Phase 1: CrimeSubHeadID → CrimeHeadName
+        sid_name: dict[str, str] = {}
+        sr = self._db.execute_non_query(
+            "SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead")
+        if "error" not in sr:
+            cols = sr.get("columns", [])
+            for row in sr.get("rows", []):
+                d = dict(zip(cols, row))
+                k = str(d.get("CrimeSubHeadID", ""))
+                v = str(d.get("CrimeHeadName", ""))
+                if k and v:
+                    sid_name[k] = v
+
+        # Phase 2: Fetch geo points with CrimeMinorHeadID
         sql = (
-            "SELECT latitude, longitude, CaseMasterID, CaseCategoryID FROM CaseMaster WHERE "
-            + " AND ".join(where)
-            + f" LIMIT {int(limit)}"
+            "SELECT latitide, longitude, ROWID, CrimeMinorHeadID FROM CaseMaster" +
+            where_sql + f" LIMIT {int(limit)}"
         )
         res = self._db.execute_non_query(sql)
         if "error" in res:
             return []
-        return self._as_dicts(res)
+        rows = self._as_dicts(res)
+        for r in rows:
+            if "latitide" in r and "latitude" not in r:
+                r["latitude"] = r.pop("latitide")
+            if "ROWID" in r and "CaseMasterID" not in r:
+                r["CaseMasterID"] = r.pop("ROWID")
+            sid = str(r.pop("CrimeMinorHeadID", ""))
+            r["CaseCategoryID"] = sid_name.get(sid, "Unknown")
+        return rows
 
     def station_ids_for_districts(self, district_ids: Iterable[int]) -> list[int]:
         district_ids = list(district_ids or [])
         if not district_ids:
             return []
         res = self._db.execute_non_query(
-            f"SELECT UnitID FROM Unit WHERE DistrictID IN ({_csv_ints(district_ids)}) LIMIT 1000"
+            f"SELECT UnitID FROM Unit WHERE DistrictID IN ({_csv_ints(district_ids)}) LIMIT 300"
         )
         if "error" in res:
             return []
@@ -121,33 +144,33 @@ class ZCQLAccusedRepository(AccusedRepository):
     def __init__(self, db: DatastoreClient):
         self._db = db
 
-    def fetch_all(self, limit: int = 10000) -> list[dict]:
+    def fetch_all(self, limit: int = 300) -> list[dict]:
         res = self._db.execute_non_query(
-            f"SELECT AccusedMasterID, CaseMasterID, AccusedName, AgeYear, "
+            f"SELECT ROWID, CaseMasterID, AccusedName, AgeYear, "
             f"GenderID, PersonID FROM Accused LIMIT {int(limit)}"
         )
         if "error" in res:
             return []
         return ZCQLCaseRepository._as_dicts(res)
 
-    def fetch_by_name(self, accused_name: str, limit: int = 1000) -> list[dict]:
+    def fetch_by_name(self, accused_name: str, limit: int = 300) -> list[dict]:
         if not accused_name or not str(accused_name).strip():
             return []
         res = self._db.execute_non_query(
-            "SELECT AccusedMasterID, CaseMasterID, AccusedName, AgeYear, GenderID, PersonID "
+            "SELECT ROWID, CaseMasterID, AccusedName, AgeYear, GenderID, PersonID "
             f"FROM Accused WHERE AccusedName = {_esc(accused_name)} LIMIT {int(limit)}"
         )
         if "error" in res:
             return []
         return ZCQLCaseRepository._as_dicts(res)
 
-    def fetch_cases(self, case_master_ids: Iterable[int], limit: int = 1000) -> list[dict]:
+    def fetch_cases(self, case_master_ids: Iterable[int], limit: int = 300) -> list[dict]:
         ids = list(case_master_ids or [])
         if not ids:
             return []
         res = self._db.execute_non_query(
-            "SELECT CaseMasterID, CrimeNo, CrimeRegisteredDate, CrimeMinorHeadID, "
-            f"CaseStatusID FROM CaseMaster WHERE CaseMasterID IN ({_csv_ints(ids)}) LIMIT {int(limit)}"
+            "SELECT ROWID, CrimeNo, CrimeRegisteredDate, CrimeMinorHeadID, "
+            f"CaseStatusID FROM CaseMaster WHERE ROWID IN ({_csv_ints(ids)}) LIMIT {int(limit)}"
         )
         if "error" in res:
             return []

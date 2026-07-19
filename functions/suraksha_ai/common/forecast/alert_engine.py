@@ -33,7 +33,7 @@ class AlertEngine:
         """
         # Step 1: get station IDs for district
         unit_res = db.execute_non_query(
-            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 1000"
+            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 300"
         )
         if "error" in unit_res or not unit_res.get("rows"):
             return None
@@ -75,7 +75,7 @@ class AlertEngine:
     def _fetch_repeat_accused(self, db, district_id: int, days: int = 30) -> list[dict]:
         """Find accused with >=2 new cases in last N days and >=3 total historical cases."""
         unit_res = db.execute_non_query(
-            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 1000"
+            f"SELECT UnitID FROM Unit WHERE DistrictID = {int(district_id)} LIMIT 300"
         )
         if "error" in unit_res or not unit_res.get("rows"):
             return []

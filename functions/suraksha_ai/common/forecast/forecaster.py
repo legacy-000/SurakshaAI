@@ -43,11 +43,6 @@ def _seasonal_naive_pred(train: list[float], horizon: int, drift: float) -> list
     return preds
 
 
-def _synthetic_series(days: int, base: int = 20, amp: int = 10, trend: float = 0.3) -> list[float]:
-    return [max(0, round(base + math.sin(i * 2 * math.pi / 7) * amp + i * trend))
-            for i in range(days)]
-
-
 class ForecastStrategy(ABC):
     """Single contract for every algorithm.
 
@@ -164,7 +159,7 @@ class ProphetForecastStrategy(ForecastStrategy):
         return {"points": points, "residual_std": resid_std, "model_name": self.name, "horizon": horizon}
 
 
-def build_forecaster() -> "Forecaster":
+def build_forecaster(store=None) -> "Forecaster":
     """Composition root for the forecaster. Tries fancy first, falls back.
 
     Adding a new strategy = add its class above + add a branch here. Never
@@ -176,14 +171,15 @@ def build_forecaster() -> "Forecaster":
         strategy = ARIMAForecastStrategy()
     else:
         strategy = SeasonalNaiveStrategy()
-    return Forecaster(strategy)
+    return Forecaster(strategy, store=store)
 
 
 class Forecaster:
     """Closed for modification (Part E.2), delegates work to a strategy."""
 
-    def __init__(self, strategy: ForecastStrategy):
+    def __init__(self, strategy: ForecastStrategy, store=None):
         self.strategy = strategy
+        self._store = store
 
     @property
     def strategy_name(self) -> str:
@@ -197,7 +193,7 @@ class Forecaster:
         from common.db.datastore_client import DatastoreClient
         from common.repositories.zcql_impl import CatalystRowPrecomputedStore
         db = DatastoreClient(catalyst_app)
-        store = CatalystRowPrecomputedStore(db)
+        store = self._store or CatalystRowPrecomputedStore(db)
         districts = self._all_district_ids(db)
         if not districts:
             return {"status": "skipped", "reason": "no districts"}
@@ -218,7 +214,7 @@ class Forecaster:
     def _all_district_ids(db) -> list[int]:
         if not getattr(db, "is_connected", False):
             return []
-        res = db.execute_non_query("SELECT DistrictID FROM DistrictMaster LIMIT 1000")
+        res = db.execute_non_query("SELECT DistrictID FROM District LIMIT 300")
         if "error" in res or not res.get("rows"):
             return []
         cols = res.get("columns", [])
@@ -234,17 +230,13 @@ class Forecaster:
         return out
 
     def forecast(self, req: ForecastRequestDTO, db=None) -> ForecastResultDTO:
-        """Backwards-compatible signature used by main.py call sites.
-
-        Internally uses the configured strategy. Falls back to a synthetic
-        series when the live DB is unreachable — preserves the original
-        behavior so no caller breaks.
-        """
         run_id = str(uuid.uuid4())
         horizon = req.forecast_horizon_days
-        daily_counts = self._fetch_training_data(req, db) if db is not None else None
+        if db is None:
+            raise RuntimeError("forecast: no DB connection provided")
+        daily_counts = self._fetch_training_data(req, db)
         if daily_counts is None or len(daily_counts) < 14:
-            daily_counts = _synthetic_series(max(req.training_window_days, horizon))
+            raise RuntimeError(f"forecast: insufficient training data ({len(daily_counts) if daily_counts else 0} days, need 14)")
         result = self.strategy.forecast(daily_counts, horizon)
         return ForecastResultDTO(
             run_id=run_id,
@@ -273,7 +265,7 @@ class Forecaster:
             return None
         try:
             unit_res = db.execute_non_query(
-                f"SELECT UnitID FROM Unit WHERE DistrictID = {int(req.district_id)} LIMIT 1000"
+                f"SELECT UnitID FROM Unit WHERE DistrictID = {int(req.district_id)} LIMIT 300"
             )
         except Exception:
             return None

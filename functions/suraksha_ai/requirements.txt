@@ -2,3 +2,5 @@ zcatalyst-sdk==1.4.0
 pydantic
 sqlparse
 requests
+fpdf2
+PyJWT

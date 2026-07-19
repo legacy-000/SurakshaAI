@@ -254,7 +254,11 @@ export const api = {
 
   getTrends() { return postToBackend('get_trends'); },
 
-  getHotspots() { return postToBackend('get_hotspots'); },
+  getHotspots(districtId: number = 1, epsKm: number = 20, minCases: number = 3) {
+    return postToBackend('get_hotspots', { district_id: districtId, eps_km: epsKm, min_cases: minCases });
+  },
+
+  getSocioDemographics() { return postToBackend('get_socio_demographics'); },
 
   getNetwork(accusedName: string) { return postToBackend('get_network', { accused_name: accusedName }); },
 

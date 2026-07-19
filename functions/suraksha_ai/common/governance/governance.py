@@ -60,7 +60,7 @@ def _hydrate_rows(db, table: str, where_col: Optional[str] = None,
     if where_col is not None and where_val is not None:
         esc = str(where_val).replace("'", "''")
         sql += f" WHERE {where_col} = '{esc}'"
-    sql += " LIMIT 1000"  # ponytail: ZCQL LIMIT-only pagination; MAX_LIMIT=1000
+    sql += " LIMIT 300"  # ponytail: ZCQL LIMIT-only pagination; MAX_LIMIT=300
     res = db.execute_non_query(sql)
     if not _db_ok(res):
         if _table_missing(res, table):
