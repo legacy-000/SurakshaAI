@@ -88,7 +88,7 @@ export const AnalyticsPage: React.FC = () => {
 
   const loadDemographics = useCallback(() => {
     const cached = cacheGet<any>('demo');
-    if (cached && cached._v === '11') { setDemographics(cached); setDemoError(null); setLoadingDemo(false); return; }
+    if (cached) { setDemographics(cached); setDemoError(null); setLoadingDemo(false); return; }
     setLoadingDemo(true); setDemoError(null);
     api.getSocioDemographics().then((data: any) => {
       if (data?.error) { setDemoError(data.error); setDemographics(null); return; }
@@ -98,8 +98,12 @@ export const AnalyticsPage: React.FC = () => {
   }, []);
 
   const loadForecast = useCallback(() => {
-    setLoadingForecast(true);
-    api.getMultiForecast().then(data => setForecastData(data)).catch(() => {}).finally(() => setLoadingForecast(false));
+    const cached = cacheGet<any[]>('forecast');
+    if (cached) { setForecastData(cached); setLoadingForecast(false); }
+    api.getMultiForecast().then((data: any) => {
+      cacheSet('forecast', data);
+      setForecastData(data);
+    }).catch(() => {}).finally(() => setLoadingForecast(false));
   }, []);
 
   // Load trends + hotspots + forecast on mount; lazy-load demographics
