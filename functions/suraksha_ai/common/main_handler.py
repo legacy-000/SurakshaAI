@@ -138,6 +138,7 @@ class SurakshaAIHandler:
 # main.py's ``handler()`` does only RBAC gating, dispatch, and response
 # shaping — no business logic lives in main.py anymore.
 # ---------------------------------------------------------------------------
+import uuid  # noqa: E402
 from datetime import datetime  # noqa: E402  (kept here to avoid reordering existing imports)
 
 from common.models.dto import (
@@ -617,20 +618,34 @@ def h_network_ai_query(c):
 
     if not conv_id:
         conv_id = store.create(user_id)
-        if not conv_id:
-            return {"error": "Failed to create conversation"}, 500
+    if not conv_id:
+        conv_id = store.create(user_id)
 
     history = store.get_messages(conv_id)
-    store.add_message(conv_id, "user", question)
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    user_mid = str(uuid.uuid4())
+    store.add_message(conv_id, "user", question, mid=user_mid)
+    messages = [{
+        "message_id": user_mid,
+        "role": "user",
+        "content_text": question,
+        "created_at": now_str,
+    }]
 
     handler = c["handler"].network_ai
     result = handler.answer(question, history, nodes, edges)
 
     answer_text = result.get("answer", "") or result.get("summary", "")
     if answer_text:
-        store.add_message(conv_id, "assistant", answer_text)
+        assistant_mid = str(uuid.uuid4())
+        store.add_message(conv_id, "assistant", answer_text, mid=assistant_mid)
+        messages.append({
+            "message_id": assistant_mid,
+            "role": "assistant",
+            "content_text": answer_text,
+            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        })
 
-    messages = store.get_messages(conv_id)
     result["conversation_id"] = conv_id
     result["messages"] = messages
     return result

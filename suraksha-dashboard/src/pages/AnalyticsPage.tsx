@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { MapPin, TrendingUp, AlertCircle, Bot, ChevronDown, ChevronUp, Shield, Users, Activity } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
+import type { ForecastDataPoint } from '../types';
 
 const COLORS = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 const DENSITY_COLORS = { Low: '#22C55E', Medium: '#F59E0B', High: '#EF4444' };
@@ -47,7 +48,7 @@ function genderPie(records: any[], key: string) {
 export const AnalyticsPage: React.FC = () => {
   const { t } = useLanguage();
   const [crimeTypeTab, setCrimeTypeTab] = useState<string>('__all__');
-  const [subTab, setSubTab] = useState<'hotspot' | 'all'>('all');
+  const [subTab, setSubTab] = useState<'hotspot' | 'all' | 'forecast'>('all');
 
   const [trends, setTrends] = useState<any[]>([]);
   const [hotspots, setHotspots] = useState<any[]>([]);
@@ -56,6 +57,8 @@ export const AnalyticsPage: React.FC = () => {
   const [loadingTrends, setLoadingTrends] = useState(true);
   const [loadingHotspots, setLoadingHotspots] = useState(true);
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [forecastData, setForecastData] = useState<{ category: string; data: ForecastDataPoint[] }[]>([]);
+  const [loadingForecast, setLoadingForecast] = useState(true);
   const [showGeoBot, setShowGeoBot] = useState(true);
   const [geoBotMsg, setGeoBotMsg] = useState(t('Select a crime type for analysis, or ask below.', 'ವಿಶ್ಲೇಷಣೆಗಾಗಿ ಅಪರಾಧ ಪ್ರಕಾರವನ್ನು ಆಯ್ಕೆಮಾಡಿ, ಅಥವಾ ಕೆಳಗೆ ಕೇಳಿ.'));
   const [granularity, setGranularity] = useState<'state' | 'district' | 'subdistrict'>('district');
@@ -94,8 +97,13 @@ export const AnalyticsPage: React.FC = () => {
     }).catch((e: any) => setDemoError(e?.message || 'Request failed')).finally(() => setLoadingDemo(false));
   }, []);
 
-  // Load trends + hotspots on mount; lazy-load demographics
-  useEffect(() => { loadTrends(); loadHotspots(); }, []);
+  const loadForecast = useCallback(() => {
+    setLoadingForecast(true);
+    api.getMultiForecast().then(data => setForecastData(data)).catch(() => {}).finally(() => setLoadingForecast(false));
+  }, []);
+
+  // Load trends + hotspots + forecast on mount; lazy-load demographics
+  useEffect(() => { loadTrends(); loadHotspots(); loadForecast(); }, []);
   useEffect(() => { if (subTab === 'all') loadDemographics(); }, [subTab, loadDemographics]);
 
   // ── Derived crime types ──────────────────────────────────────
@@ -116,6 +124,13 @@ export const AnalyticsPage: React.FC = () => {
   }, [allCrimeTypes]);
 
   const isAll = crimeTypeTab === '__all__';
+
+  const filteredForecast = useMemo(() => {
+    if (isAll) return forecastData;
+    return forecastData.filter(d => d.category === crimeTypeTab);
+  }, [forecastData, crimeTypeTab]);
+
+  const FORECAST_COLORS = ['#6C63FF', '#22C55E', '#F59E0B', '#EF4444', '#3B82F6'];
 
   // ── Filter helpers ───────────────────────────────────────────
   function filterBy(records: any[], typeField = 'crime_type') {
@@ -332,6 +347,10 @@ export const AnalyticsPage: React.FC = () => {
             onClick={() => setSubTab('hotspot')}>
             <MapPin size={14} /> {t('Hotspot', 'ಹಾಟ್‌ಸ್ಪಾಟ್')}
           </button>
+          <button className={`btn btn-ghost btn-sm ${subTab === 'forecast' ? 'active' : ''}`}
+            onClick={() => setSubTab('forecast')}>
+            <TrendingUp size={14} /> {t('Forecast', 'ಮುನ್ಸೂಚನೆ')}
+          </button>
           <button className={`btn btn-ghost btn-sm ${subTab === 'all' ? 'active' : ''}`}
             onClick={() => setSubTab('all')}>
             <Activity size={14} /> {t('All Info', 'ಎಲ್ಲಾ ಮಾಹಿತಿ')}
@@ -429,6 +448,107 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ════════════════ FORECAST SUB-TAB ════════════════ */}
+        {subTab === 'forecast' && (
+          <div>
+            <div className="grid-4" style={{ marginBottom: 16 }}>
+              {[
+                { label: t('Forecast Model', 'ಮುನ್ಸೂಚನಾ ಮಾದರಿ'), value: 'Prophet v1.0' },
+                { label: t('Confidence Interval', 'ವಿಶ್ವಾಸಾರ್ಹತೆಯ ಮಧ್ಯಂತರ'), value: '80%' },
+                { label: t('Forecast Horizon', 'ಮುನ್ಸೂಚನಾ ಅವಧಿ'), value: '30 days' },
+                { label: t('Data Granularity', 'ಡೇಟಾ ಸೂಕ್ಷ್ಮತೆ'), value: 'Daily' },
+              ].map(m => (
+                <div key={m.label} className="card kpi-card">
+                  <div className="kpi-value" style={{ fontSize: 24 }}>{m.value}</div>
+                  <div className="kpi-label">{m.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {loadingForecast ? (
+              <div className="skeleton" style={{ width: '100%', height: 400, borderRadius: 8 }} />
+            ) : filteredForecast.length === 0 ? (
+              <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                {t('No forecast data available for this crime type.', 'ಈ ಅಪರಾಧ ಪ್ರಕಾರಕ್ಕೆ ಮುನ್ಸೂಚನೆ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ.')}
+              </div>
+            ) : (
+              <>
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div className="card-header">
+                    {isAll
+                      ? t('30-Day Forecast by Crime Type — Bengaluru Urban', '30-ದಿನಗಳ ಮುನ್ಸೂಚನೆ ಅಪರಾಧ ಪ್ರಕಾರದ ಪ್ರಕಾರ — ಬೆಂಗಳೂರು ನಗರ')
+                      : `${t('30-Day Forecast', '30-ದಿನಗಳ ಮುನ್ಸೂಚನೆ')}: ${crimeTypeTab}`}
+                  </div>
+                  {isAll ? (
+                    <div>
+                      <ResponsiveContainer width="100%" height={350}>
+                        <AreaChart data={(() => {
+                          if (filteredForecast.length === 0) return [];
+                          const first = filteredForecast[0].data;
+                          return first.map((_, i) => {
+                            const row: Record<string, any> = { date: `Day ${i + 1}` };
+                            filteredForecast.forEach(m => { row[m.category] = m.data[i]?.predicted ?? 0; });
+                            return row;
+                          });
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                          <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} interval={5} />
+                          <YAxis stroke="var(--text-muted)" fontSize={12} />
+                          <Tooltip />
+                          {filteredForecast.map((m, i) => (
+                            <Area key={m.category} type="monotone" dataKey={m.category}
+                              stroke={FORECAST_COLORS[i % FORECAST_COLORS.length]} strokeWidth={2}
+                              fill="transparent" dot={false} />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div>
+                      <ResponsiveContainer width="100%" height={350}>
+                        <AreaChart data={filteredForecast[0]?.data || []}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                          <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} />
+                          <YAxis stroke="var(--text-muted)" fontSize={12} />
+                          <Tooltip />
+                          <Area type="monotone" dataKey="upper" stroke="transparent" fill="var(--primary)" fillOpacity={0.1} />
+                          <Area type="monotone" dataKey="lower" stroke="transparent" fill="var(--primary)" fillOpacity={0.05} />
+                          <Area type="monotone" dataKey="predicted" stroke="var(--primary)" strokeWidth={2} fill="var(--primary)" fillOpacity={0.3} dot={false} />
+                          <Area type="monotone" dataKey="actual" stroke="#22C55E" strokeWidth={2} fill="transparent" dot={{ r: 3, fill: '#22C55E' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                <div className="card">
+                  <div className="card-header">
+                    {isAll
+                      ? t('Predicted Cases by Crime Type (Day 30)', '30ನೇ ದಿನದ ಮುನ್ಸೂಚಿತ ಪ್ರಕರಣಗಳು')
+                      : `${t('Day 30 Prediction', '30ನೇ ದಿನದ ಮುನ್ಸೂಚನೆ')}: ${crimeTypeTab}`}
+                  </div>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={filteredForecast.map(d => ({
+                      name: d.category,
+                      value: d.data[d.data.length - 1]?.predicted || 0,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+                      <YAxis stroke="var(--text-muted)" fontSize={12} />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]}>
+                        {filteredForecast.map((_, i) => (
+                          <Cell key={i} fill={FORECAST_COLORS[i % FORECAST_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            )}
           </div>
         )}
 

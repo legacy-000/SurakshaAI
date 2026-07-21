@@ -15,13 +15,16 @@ class NetworkConversationStore:
         return str(s).replace("'", "''")
 
     def create(self, user_id, title="New Network Chat"):
+        existing = self.list(user_id, limit=1)
+        if existing:
+            self.delete(existing[0]["conversation_id"])
         cid = str(uuid.uuid4())
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         sql = (
             f"INSERT INTO NetworkConversations (conversation_id, user_id, title, "
-            f"created_at, updated_at) VALUES ("
+            f"created_at, updates_at, message_count) VALUES ("
             f"'{cid}', '{self._esc(user_id)}', '{self._esc(title)}', "
-            f"'{now}', '{now}')"
+            f"'{now}', '{now}', 0)"
         )
         r = self._db.execute_non_query(sql)
         if r.get("error"):
@@ -29,11 +32,11 @@ class NetworkConversationStore:
             return None
         return cid
 
-    def add_message(self, conv_id, role, content_text):
-        mid = str(uuid.uuid4())
+    def add_message(self, conv_id, role, content_text, mid=None):
+        mid = mid or str(uuid.uuid4())
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         sql = (
-            f"INSERT INTO NetworkChatMessages (message_id, conversation_id, role, "
+            f"INSERT INTO NetworkChatMessages (message_id, converation_id, role, "
             f"content_text, created_at) VALUES ("
             f"'{mid}', '{conv_id}', '{self._esc(role)}', "
             f"'{self._esc(content_text)}', '{now}')"
@@ -43,7 +46,7 @@ class NetworkConversationStore:
             logger.error("add_network_message failed: %s", r.get("message"))
             return None
         self._db.execute_non_query(
-            f"UPDATE NetworkConversations SET updated_at = '{now}' WHERE conversation_id = '{conv_id}'"
+            f"UPDATE NetworkConversations SET updates_at = '{now}' WHERE conversation_id = '{conv_id}'"
         )
         if role == 'user' and content_text:
             title = content_text[:200]
@@ -56,7 +59,7 @@ class NetworkConversationStore:
     def get_messages(self, conv_id, limit=100):
         sql = (
             f"SELECT message_id, role, content_text, created_at "
-            f"FROM NetworkChatMessages WHERE conversation_id = '{conv_id}' "
+            f"FROM NetworkChatMessages WHERE converation_id = '{conv_id}' "
             f"ORDER BY created_at ASC LIMIT {limit}"
         )
         r = self._db.execute(sql)
@@ -68,7 +71,7 @@ class NetworkConversationStore:
     def get(self, conv_id):
         sql = (
             f"SELECT conversation_id, user_id, title, created_at, "
-            f"updated_at FROM NetworkConversations "
+            f"updates_at FROM NetworkConversations "
             f"WHERE conversation_id = '{conv_id}'"
         )
         r = self._db.execute(sql)
@@ -82,9 +85,9 @@ class NetworkConversationStore:
     def list(self, user_id, limit=50):
         sql = (
             f"SELECT conversation_id, title, created_at, "
-            f"updated_at FROM NetworkConversations "
+            f"updates_at FROM NetworkConversations "
             f"WHERE user_id = '{self._esc(user_id)}' "
-            f"ORDER BY updated_at DESC LIMIT {limit}"
+            f"ORDER BY updates_at DESC LIMIT {limit}"
         )
         r = self._db.execute(sql)
         if r.get("error"):
@@ -94,7 +97,7 @@ class NetworkConversationStore:
 
     def delete(self, conv_id):
         self._db.execute_non_query(
-            f"DELETE FROM NetworkChatMessages WHERE conversation_id = '{conv_id}'"
+            f"DELETE FROM NetworkChatMessages WHERE converation_id = '{conv_id}'"
         )
         self._db.execute_non_query(
             f"DELETE FROM NetworkConversations WHERE conversation_id = '{conv_id}'"
