@@ -24,8 +24,6 @@ class DatastoreClient:
             raw = self._catalyst_app.zcql().execute_query(sql)
             if not raw:
                 return {"status": "success", "row_count": 0, "columns": [], "rows": [], "response": str(raw)}
-            # ZCQL returns: [{"Table1": {"c1": "v1", ...}, "Table2": {"c2": "v2", ...}}, ...]
-            # Merge columns from ALL table entries (handles JOINs)
             cols = []
             if isinstance(raw[0], dict):
                 for td in raw[0].values():

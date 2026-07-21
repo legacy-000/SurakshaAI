@@ -23,9 +23,10 @@ export interface EvidenceRef {
 
 export interface ChatMessage {
   message_id: string;
-  message_type: 'user_query' | 'ai_response';
+  message_type: 'user_query' | 'ai_response' | 'file_upload';
   content_text: string;
   content_kannada?: string;
+  conversation_id?: string;
   sql_text?: string;
   evidence_refs?: EvidenceRef[];
   chart_recommendation?: string;
@@ -93,6 +94,9 @@ export interface GraphNode {
   node_type: string;
   cases: number;
   risk_tier?: string;
+  crime_type?: string;
+  person_id?: string;
+  sub_label?: string;
 }
 
 export interface GraphEdge {
@@ -101,6 +105,8 @@ export interface GraphEdge {
   target: string;
   weight: number;
   shared_cases: number[];
+  connection_basis?: string;
+  edge_type?: string;
 }
 
 export interface Conversation {

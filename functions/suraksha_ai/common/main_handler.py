@@ -6,6 +6,8 @@ from common.analytics.trend_analyzer import TrendAnalyzer
 from common.analytics.hotspot_detector import HotspotDetector
 from common.analytics.stats_aggregator import StatsAggregator
 from common.network.graph_projector import GraphProjector
+from common.network.network_ai_handler import NetworkAIHandler
+from common.network.network_conversation_store import NetworkConversationStore
 from common.offender.offender_profiler import OffenderProfiler
 from common.offender.priority_scorer import PriorityScorer
 from common.forecast.forecaster import Forecaster, build_forecaster
@@ -49,6 +51,8 @@ class SurakshaAIHandler:
         self.hotspots = HotspotDetector()
         self.stats = StatsAggregator()
         self.graph_projector = GraphProjector()
+        self.network_ai = NetworkAIHandler(self._catalyst_app, tool_executor=self.chat._tool_executor)
+        self.network_conv_store = NetworkConversationStore(self.chat.executor)
         self.offender_profiler = OffenderProfiler()
         self.priority_scorer = PriorityScorer()
         self.forecaster = build_forecaster()
@@ -166,12 +170,14 @@ def h_verify_token(c):
 
 def h_chat_query(c):
     message = c["params"].get("message", c["params"].get("query", ""))
-    req = QueryRequestDTO(message=message, lang=c["params"].get("lang", "en"))
+    conversation_id = c["params"].get("conversation_id")
+    req = QueryRequestDTO(message=message, lang=c["params"].get("lang", "en"), conversation_id=conversation_id)
     result = c["handler"].chat.handle_query(req, c["user_context"])
     return {
         "message_id": result.message_id, "message_type": result.message_type,
         "content_text": result.content_text,
         "content_kannada": result.content_kannada or "",
+        "conversation_id": result.conversation_id,
         "sql_text": result.sql_text,
         "chart_recommendation": result.chart_recommendation,
         "evidence_refs": [e.model_dump() for e in result.evidence_refs],
@@ -181,6 +187,62 @@ def h_chat_query(c):
         "tool_params": result.tool_params or {},
         "created_at": result.created_at or datetime.utcnow().isoformat(),
     }
+
+
+def h_list_conversations(c):
+    user_id = c["user_context"].user_id if c["user_context"] else "anonymous"
+    store = c["handler"].chat.conversation_manager
+    return store.list(user_id)
+
+
+def h_get_conversation(c):
+    conv_id = c["params"].get("conversation_id", "")
+    if not conv_id:
+        return {"error": "conversation_id required"}, 400
+    store = c["handler"].chat.conversation_manager
+    conv = store.get(conv_id)
+    if not conv:
+        return {"error": "NOT_FOUND"}, 404
+    return conv
+
+
+def h_delete_conversation(c):
+    conv_id = c["params"].get("conversation_id", "")
+    if not conv_id:
+        return {"error": "conversation_id required"}, 400
+    c["handler"].chat.conversation_manager.delete(conv_id)
+    return {"status": "ok"}
+
+
+def h_upload_file(c):
+    """Handle file upload for chat. Files go to Stratus, metadata to ChatAttachments."""
+    import base64
+    conv_id = c["params"].get("conversation_id", "")
+    if not conv_id:
+        return {"error": "conversation_id required"}, 400
+    file_data = c["params"].get("file_data")
+    file_name = c["params"].get("file_name", "upload.bin")
+    mime_type = c["params"].get("mime_type", "application/octet-stream")
+    if not file_data:
+        return {"error": "file_data required (base64)"}, 400
+    try:
+        raw = base64.b64decode(file_data)
+    except Exception:
+        return {"error": "invalid base64"}, 400
+
+    store = c["handler"].chat.conversation_manager
+    from pdf.pdf_exporter import upload_to_stratus
+    uploaded = upload_to_stratus(raw, file_name)
+    file_id = uploaded.get("file_id", file_name)
+
+    msg_id = store.add_message(
+        conv_id, role="assistant",
+        content_text=f"📎 Uploaded file: {file_name} ({mime_type})",
+        message_type="file_upload",
+    )
+    if msg_id:
+        store.add_attachment(conv_id, msg_id, file_name, mime_type, len(raw), file_id)
+    return {"status": "ok", "attachment_id": msg_id, "file_id": file_id, "file_name": file_name}
 
 
 def h_get_crime_stats(c):
@@ -251,18 +313,12 @@ def h_create_offender_profile(c):
     return c["handler"]._db_client.insert_bulk_rows("Accused", [row_data])
 
 
+# ponytail: cache disabled during dev — enable when backend iteration stabilises
 def _cached(key: str):
-    try:
-        return cache_get(key)
-    except Exception:
-        return None
-
+    return None
 
 def _store(key: str, data):
-    try:
-        cache_set(key, data)
-    except Exception:
-        pass
+    pass
 
 
 def h_get_trends(c):
@@ -321,15 +377,23 @@ def h_get_socio_demographics(c):
     except Exception as e:
         import traceback
         logging.getLogger().error("demographics error: %s\n%s", e, traceback.format_exc())
-        return {"error": str(e), "_v": "5"}
+        return {"error": str(e), "_v": "10"}
 
 
 def _h_get_socio_demographics(c):
     cached = _cached("socio_demographics")
-    if cached is not None and cached.get("_v") == "5":
+    if cached is not None and cached.get("_v") == "9":
         return cached
     db = c["handler"]._db_client
-    out: dict = {"_v": "5"}
+    out: dict = {"_v": "11"}
+
+    def _id(v):
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if s.endswith(".0"):
+            s = s[:-2]
+        return s
 
     def _fetch_map(sql, kcol, vcol):
         m = {}
@@ -340,15 +404,14 @@ def _h_get_socio_demographics(c):
                 d = dict(zip(cols, row))
                 k = d.get(kcol)
                 if k is not None:
-                    m[str(k)] = str(d.get(vcol, ""))
+                    m[_id(k)] = str(d.get(vcol, ""))
         return m
 
+    occ_raw = db.execute_non_query("SELECT OccupationID, OccupationName FROM OccupationMaster LIMIT 5")
     out["occupations"] = _fetch_map(
-        "SELECT OccupationID, OccupationName FROM OccupationMaster LIMIT 500", "OccupationID", "OccupationName")
+        "SELECT OccupationID, OccupationName FROM OccupationMaster LIMIT 100", "OccupationID", "OccupationName")
     out["religions"] = _fetch_map(
-        "SELECT ReligionID, ReligionName FROM ReligionMaster LIMIT 500", "ReligionID", "ReligionName")
-    sid_name = _fetch_map(
-        "SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead LIMIT 500", "CrimeSubHeadID", "CrimeHeadName")
+        "SELECT ReligionID, ReligionName FROM ReligionMaster LIMIT 100", "ReligionID", "ReligionName")
 
     def _fmt(res):
         if "error" in res:
@@ -356,14 +419,18 @@ def _h_get_socio_demographics(c):
         cols = res.get("columns", [])
         return [dict(zip(cols, row)) for row in res.get("rows", [])]
 
-    def _id(v):
-        if v is None:
-            return ""
-        s = str(v).strip()
-        if s.endswith(".0"):
-            s = s[:-2]
-        return s
-
+    # Fetch CrimeSubHead — use LIMIT 100 (LIMIT 500 returns empty on ZCQL)
+    sid_raw_data = db.execute_non_query("SELECT CrimeSubHeadID, CrimeHeadName FROM CrimeSubHead LIMIT 100")
+    sid_name = {}
+    if "error" not in sid_raw_data:
+        cols = sid_raw_data.get("columns", [])
+        for row in sid_raw_data.get("rows", []):
+            d = dict(zip(cols, row))
+            k = _id(d.get("CrimeSubHeadID"))
+            v = str(d.get("CrimeHeadName", ""))
+            if k:
+                sid_name[k] = v
+    
     # Fetch records with LIMIT on every query
     v_raw = _fmt(db.execute_non_query(
         "SELECT CaseMasterID, AgeYear, GenderID, VictimPolice FROM Victim WHERE AgeYear IS NOT NULL LIMIT 300"))
@@ -372,16 +439,18 @@ def _h_get_socio_demographics(c):
     c_raw = _fmt(db.execute_non_query(
         "SELECT CaseMasterID, AgeYear, GenderID, OccupationID, ReligionID FROM ComplainantDetails LIMIT 300"))
 
-    # CaseMaster scan — ROWID is the primary key (CaseMasterID in other tables is foreign key to ROWID)
-    cm_raw = db.execute_non_query(
-        "SELECT ROWID, CrimeMinorHeadID, CrimeRegisteredDate FROM CaseMaster LIMIT 300")
-    cm_rows = _fmt(cm_raw)
-
-    # Build ROWID → CrimeMinorHeadID map + cases_by_year
+    # ---- CaseMaster scan ----
+    # Strategy: map Victim/Accused/Complainant CaseMasterID → CrimeMinorHeadID
+    # CaseMaster was imported from CSV. ZCQL cannot SELECT CaseMasterID (column empty in Data Store),
+    # but rows are returned in insertion order (ROWID order: 55029...768, 769, 770...).
+    # Assume CaseMasterIDs in source CSV were sequential (1, 2, 3...) matching row position.
+    cm_rows_sorted = _fmt(db.execute_non_query(
+        "SELECT CrimeMinorHeadID, CrimeRegisteredDate FROM CaseMaster LIMIT 300"))
+    
     cm_map: dict[str, str] = {}
     years: dict[str, dict[str, int]] = {}
-    for d in cm_rows:
-        cid = _id(d.get("ROWID"))
+    for i, d in enumerate(cm_rows_sorted):
+        cid = str(i + 1)  # positional: 1st row = CaseMasterID 1
         mid = _id(d.get("CrimeMinorHeadID", ""))
         if cid and mid:
             cm_map[cid] = mid
@@ -392,6 +461,12 @@ def _h_get_socio_demographics(c):
             yy = years.setdefault(y, {})
             yy[ct] = yy.get(ct, 0) + 1
 
+    # Verify positional assumption: check that CaseMaster rows span expected range
+    used_ids = {_id(r.get("CaseMasterID", "")) for r in v_raw + a_raw + c_raw if r.get("CaseMasterID")}
+    max_expected = max((int(x) for x in used_ids if x.isdigit()), default=0)
+    pos_plausible = len(cm_rows_sorted) >= max_expected
+
+
     # Check overlap: which CaseMasterID values from records exist in the cm_map
     v_ids = {_id(r.get("CaseMasterID", "")) for r in v_raw if r.get("CaseMasterID")}
     a_ids = {_id(r.get("CaseMasterID", "")) for r in a_raw if r.get("CaseMasterID")}
@@ -401,9 +476,26 @@ def _h_get_socio_demographics(c):
     missed = all_victim_ids - set(cm_map.keys())
     
     out["_debug"] = {
-        "v": len(v_raw), "a": len(a_raw), "c": len(c_raw), "cm": len(cm_rows), "map": len(cm_map),
+        "v": len(v_raw), "a": len(a_raw), "c": len(c_raw), "cm": len(cm_rows_sorted), "map": len(cm_map),
         "uniq_ids": len(all_victim_ids), "hits": hits, "miss": len(missed),
-        "cm_keys": list(set(cm_map.keys()))[:3], "v_ids": list(all_victim_ids)[:3]
+        "cm_keys": sorted(set(cm_map.keys()))[:5], "v_ids": sorted(all_victim_ids)[:5],
+        "sv": [{"cmid": r.get("CaseMasterID","")} for r in (v_raw[:2] or [])],
+        "sa": [{"cmid": r.get("CaseMasterID","")} for r in (a_raw[:2] or [])],
+        "sc": [{"cmid": r.get("CaseMasterID","")} for r in (c_raw[:2] or [])],
+        "pos": int(pos_plausible),
+        "max_exp": max_expected,
+        "cm_mids": [_id(r.get("CrimeMinorHeadID","")) for r in cm_rows_sorted[:5]],
+        "sid_keys": sorted(sid_name.keys())[:10],
+        "sid_vals": {k: sid_name.get(k) for k in list(sid_name.keys())[:5]},
+        "mid_check": {m: sid_name.get(m, "NOPE") for m in ["2","3","5","7","1"]},
+        "sid_name_check": dict(list(sid_name.items())[:3]),
+        "sid_name_len": len(sid_name),
+        "sid_raw": _fmt(sid_raw_data),
+        "occ_raw": _fmt(occ_raw),
+        "occ_map_len": len(out.get("occupations", {})),
+        "occ_map": dict(list(out.get("occupations", {}).items())[:3]),
+        "sid_map_len": len(out.get("religions", {})),
+        "rel_map": dict(list(out.get("religions", {}).items())[:3]),
     }
 
     # Add crime_type to each record
@@ -417,6 +509,14 @@ def _h_get_socio_demographics(c):
     out["victims"] = {"total": len(v_raw), "records": _build(v_raw, "CaseMasterID")}
     out["accused"] = {"total": len(a_raw), "records": _build(a_raw, "CaseMasterID")}
     out["complainants"] = {"total": len(c_raw), "records": _build(c_raw, "CaseMasterID")}
+
+    # crime_type distribution across all demo records
+    ct_dist: dict[str, int] = {}
+    for r in out["victims"]["records"] + out["accused"]["records"] + out["complainants"]["records"]:
+        ct = r.get("crime_type", "Unknown")
+        ct_dist[ct] = ct_dist.get(ct, 0) + 1
+    out["_debug"]["ct_dist"] = ct_dist
+
     out["cases_by_year"] = [
         {"year": y, "crime_type": ct, "count": c}
         for y in sorted(years) for ct, c in sorted(years[y].items())
@@ -455,12 +555,85 @@ def _h_get_hotspots(c):
 
 
 def h_get_network(c):
-    res = c["handler"].graph_projector.build_graph(
-        c["params"].get("accused_name", ""), c["params"].get("depth", 2))
+    try:
+        res = c["handler"].graph_projector.build_graph(
+            c["params"].get("accused_name", ""),
+            c["params"].get("depth", 2),
+            db=c["handler"]._db_client,
+            search_type=c["params"].get("search_type", "auto"))
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
     return {"nodes": [{"id": n.id, "label": n.label, "node_type": n.node_type,
-                       "cases": n.cases, "risk_tier": n.risk_tier} for n in res.nodes],
+                       "cases": n.cases, "risk_tier": n.risk_tier,
+                       "crime_type": getattr(n, 'crime_type', 'Unknown'),
+                       "person_id": getattr(n, 'person_id', None)} for n in res.nodes],
             "edges": [{"id": e.id, "source": e.source, "target": e.target,
-                       "weight": e.weight, "shared_cases": e.shared_cases} for e in res.edges]}
+                       "weight": e.weight, "shared_cases": e.shared_cases,
+                       "connection_basis": e.connection_basis,
+                       "edge_type": getattr(e, 'edge_type', None)} for e in res.edges]}
+
+
+def h_network_list_conversations(c):
+    user_id = c["user_context"].user_id if c["user_context"] else "anonymous"
+    return c["handler"].network_conv_store.list(user_id)
+
+
+def h_network_get_conversation(c):
+    conv_id = c["params"].get("conversation_id", "")
+    if not conv_id:
+        return {"error": "conversation_id required"}, 400
+    conv = c["handler"].network_conv_store.get(conv_id)
+    if not conv:
+        return {"error": "NOT_FOUND"}, 404
+    return conv
+
+
+def h_network_create_conversation(c):
+    user_id = c["user_context"].user_id if c["user_context"] else "anonymous"
+    conv_id = c["handler"].network_conv_store.create(user_id)
+    if not conv_id:
+        return {"error": "Failed to create conversation"}, 500
+    conv = c["handler"].network_conv_store.get(conv_id)
+    return conv or {"conversation_id": conv_id}
+
+
+def h_network_delete_conversation(c):
+    conv_id = c["params"].get("conversation_id", "")
+    if not conv_id:
+        return {"error": "conversation_id required"}, 400
+    c["handler"].network_conv_store.delete(conv_id)
+    return {"status": "ok"}
+
+
+def h_network_ai_query(c):
+    params = c["params"]
+    question = params.get("question", "").strip()
+    nodes = params.get("nodes", [])
+    edges = params.get("edges", [])
+    conv_id = params.get("conversation_id", "") or ""
+    user_id = c["user_context"].user_id if c["user_context"] else "anonymous"
+    store = c["handler"].network_conv_store
+
+    if not conv_id:
+        conv_id = store.create(user_id)
+        if not conv_id:
+            return {"error": "Failed to create conversation"}, 500
+
+    history = store.get_messages(conv_id)
+    store.add_message(conv_id, "user", question)
+
+    handler = c["handler"].network_ai
+    result = handler.answer(question, history, nodes, edges)
+
+    answer_text = result.get("answer", "") or result.get("summary", "")
+    if answer_text:
+        store.add_message(conv_id, "assistant", answer_text)
+
+    messages = store.get_messages(conv_id)
+    result["conversation_id"] = conv_id
+    result["messages"] = messages
+    return result
 
 
 def h_get_dashboard_kpis(c):
@@ -941,6 +1114,10 @@ def register_actions(handler):
     actions = {
         "login": h_login, "verify_token": h_verify_token,
         "chat_query": h_chat_query,
+        "list_conversations": h_list_conversations,
+        "get_conversation": h_get_conversation,
+        "delete_conversation": h_delete_conversation,
+        "upload_file": h_upload_file,
         "get_crime_stats": h_get_crime_stats,
         "get_forecast": h_get_forecast,
         "get_offender_profile": h_get_offender_profile,
@@ -948,6 +1125,11 @@ def register_actions(handler):
         "get_trends": h_get_trends,
         "get_hotspots": h_get_hotspots,
         "get_network": h_get_network,
+        "network_ai_query": h_network_ai_query,
+        "network_list_conversations": h_network_list_conversations,
+        "network_get_conversation": h_network_get_conversation,
+        "network_create_conversation": h_network_create_conversation,
+        "network_delete_conversation": h_network_delete_conversation,
         "get_dashboard_kpis": h_get_dashboard_kpis,
         "get_alerts": h_get_alerts,
         "acknowledge_alert": h_acknowledge_alert,

@@ -14,26 +14,7 @@ from common.ai.query_policy import QueryPolicy
 from common.ai.schema_registry import data_quality_warnings
 from common.ai.confidence_classifier import ConfidenceClassifier
 from common.ai.grounding_validator import GroundingValidator
-
-
-class InMemoryConversation:
-    def __init__(self):
-        self._store = {}
-        self._ctx = {}
-
-    def create_conversation(self, user_id, language_code="en"):
-        cid = str(uuid.uuid4())
-        self._store[cid] = {"user_id": user_id, "lang": language_code, "messages": []}
-        return cid
-
-    def get_context(self, cid, limit=10):
-        conv = self._store.get(cid)
-        return [] if not conv else conv["messages"][-limit:]
-
-    def add_message(self, cid, msg):
-        conv = self._store.get(cid)
-        if conv:
-            conv["messages"].append(msg)
+from common.chat.persistent_conversation import ConversationStore
 
 
 class EvidenceBuilder:
@@ -173,8 +154,8 @@ LOOKUP_PATTERNS = [
 
 class ChatHandler:
     def __init__(self, catalyst_app=None):
-        self.conversation_manager = InMemoryConversation()
         self.executor = QueryExecutor(catalyst_app)
+        self.conversation_manager = ConversationStore(self.executor)
         self.answer_gen = AnswerGenerator()
         self.evidence_builder = EvidenceBuilder()
         self._glm = QuickMLClient(catalyst_app)
@@ -315,11 +296,18 @@ class ChatHandler:
         return ("SELECT ROWID, CaseNo, CrimeNo, CrimeRegisteredDate, BriedFacts FROM CaseMaster LIMIT 50"), warnings
 
     # ── GLM tool-calling ─────────────────────────────────────────────────
-    def _try_glm_tool_call(self, message: str, user_context=None) -> dict:
+    def _try_glm_tool_call(self, message: str, user_context=None, history=None) -> dict:
         messages = [
             {"role": "system", "content": self._system_prompt},
-            {"role": "user", "content": message},
         ]
+        if history:
+            for h in history:
+                role = h.get("role", "user")
+                content = h.get("content_text", "")
+                if role == "assistant" and h.get("sql_text"):
+                    content += f"\n\n[SQL: {h['sql_text']}]"
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": message})
         result = self._glm.chat(messages, temperature=0.1, max_tokens=2048,
                                 tools=[self._tool_def], tool_choice="auto")
         if result.get("error"):
@@ -393,14 +381,37 @@ class ChatHandler:
 
         return {"text": result.get("text", ""), "source": "glm_text"}
 
+    def _save_user_msg(self, conv_id, req):
+        self.conversation_manager.add_message(
+            conv_id, role="user",
+            content_text=req.message,
+            message_type="user_query",
+            content_kannada="",
+        )
+
+    def _save_response(self, conv_id, msg: ConversationMessageDTO):
+        self.conversation_manager.add_message(
+            conv_id, role="assistant",
+            content_text=msg.content_text or "",
+            content_kannada=msg.content_kannada or "",
+            sql_text=msg.sql_text or "",
+            confidence_class=msg.confidence_class or "",
+            evidence_json=[e.model_dump() for e in (msg.evidence_refs or [])],
+            followups_json=msg.suggested_followups or [],
+            message_type=msg.message_type or "ai_response",
+        )
+
     # ── Main handler ─────────────────────────────────────────────────────
     def handle_query(self, req: QueryRequestDTO, user_context=None) -> ConversationMessageDTO:
         conv_id = req.conversation_id
         if not conv_id:
-            conv_id = self.conversation_manager.create_conversation(
+            conv_id = self.conversation_manager.create(
                 user_context.user_id if user_context else "anonymous",
                 language_code=req.lang
             )
+
+        history = self.conversation_manager.get_messages(conv_id)
+        self._save_user_msg(conv_id, req)
 
         msg_lower = req.message.strip().lower().rstrip('?.!')
         greetings = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "namaste"}
@@ -413,14 +424,12 @@ class ChatHandler:
             "who made you"}
 
         if msg_lower in greetings or any(g in msg_lower for g in {"hello ", "hi ", "hey "}):
-            resp = self._try_glm_tool_call(req.message, user_context)
-            content_text = resp.get("text") if not resp.get("error") else None
-            return ConversationMessageDTO(
-                message_id=str(
-                    uuid.uuid4()),
-                conversation_id=conv_id,
+            cid = conv_id or ""
+            msg = ConversationMessageDTO(
+                message_id=str(uuid.uuid4()),
+                conversation_id=cid,
                 message_type="ai_response",
-                content_text=content_text or "Hello! I am Suraksha AI, your crime intelligence assistant for Karnataka. How can I help you today?",
+                content_text="Hello! I am Suraksha AI, your crime intelligence assistant for Karnataka. How can I help you today?",
                 content_kannada="ನಮಸ್ಕಾರ! ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕದ ಅಪರಾಧ ಗುಪ್ತಚರ ಸಹಾಯಕ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
                 confidence_class="high",
                 grounding_status="verified",
@@ -429,16 +438,16 @@ class ChatHandler:
                     "Show hotspot areas",
                     "Predict future trends"],
                 created_at=datetime.now().isoformat())
+            self._save_response(cid, msg)
+            return msg
 
         if any(q in msg_lower for q in identity_queries):
-            resp = self._try_glm_tool_call(req.message, user_context)
-            content_text = resp.get("text") if not resp.get("error") else None
-            return ConversationMessageDTO(
-                message_id=str(
-                    uuid.uuid4()),
-                conversation_id=conv_id,
+            cid = conv_id or ""
+            msg = ConversationMessageDTO(
+                message_id=str(uuid.uuid4()),
+                conversation_id=cid,
                 message_type="ai_response",
-                content_text=content_text or "I am Suraksha AI, an AI-powered Crime Intelligence and Analytics platform built for the Karnataka State Police.",
+                content_text="I am Suraksha AI, an AI-powered Crime Intelligence and Analytics platform built for the Karnataka State Police.",
                 content_kannada="ನಾನು ಸುರಕ್ಷಾ AI, ಕರ್ನಾಟಕ ರಾಜ್ಯ ಪೊಲೀಸ್‌ಗಾಗಿ ಅಪರಾಧ ಪತ್ತೆ ಹಚ್ಚುವಿಕೆ, ಮುನ್ಸೂಚನೆ ಮತ್ತು ಅಪರಾಧಿಗಳ ಪ್ರೊಫೈಲಿಂಗ್‌ನಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ನಿರ್ಮಿಸಲಾದ AI-ಆಧಾರಿತ ಅಪರಾಧ ಗುಪ್ತಚರ ಮತ್ತು ವಿಶ್ಲೇಷಣಾ ವೇದಿಕೆ.",
                 confidence_class="high",
                 grounding_status="verified",
@@ -447,9 +456,10 @@ class ChatHandler:
                     "Show hotspot areas",
                     "Predict future trends"],
                 created_at=datetime.now().isoformat())
+            self._save_response(cid, msg)
+            return msg
 
-        # Try GLM tool-calling first
-        glm_result = self._try_glm_tool_call(req.message, user_context)
+        glm_result = self._try_glm_tool_call(req.message, user_context, history)
         if not glm_result.get("error") and glm_result.get("text"):
             source = glm_result.get("source", "")
             if source == "glm_tool_call":
@@ -478,7 +488,7 @@ class ChatHandler:
             cc = self._confidence.classify(exec_res)
             gv = self._grounding.validate(answer, exec_res)
             msg = ConversationMessageDTO(
-                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+                message_id=str(uuid.uuid4()), conversation_id=conv_id or "",
                 message_type="ai_response", content_text=answer,
                 content_kannada=self._translate_answer(answer),
                 sql_text=sql_text, evidence_refs=evidence,
@@ -488,17 +498,16 @@ class ChatHandler:
                 tool_params=tool_params,
                 created_at=datetime.now().isoformat()
             )
-            self.conversation_manager.add_message(conv_id, msg)
+            self._save_response(conv_id, msg)
             return msg
 
-        # Fallback: regex
         sql_text, _warnings = self._match_common_query(req.message)
         exec_result = self.executor.execute(sql_text)
         if exec_result.get("error"):
             err_msg = f"{exec_result.get('message', 'Query execution failed')} | Generated SQL: {sql_text}"
             err_msg_kn = f"{self._translate_answer(exec_result.get('message', 'Query execution failed'))} | Generated SQL: {sql_text}"
-            return ConversationMessageDTO(
-                message_id=str(uuid.uuid4()), conversation_id=conv_id,
+            msg = ConversationMessageDTO(
+                message_id=str(uuid.uuid4()), conversation_id=conv_id or "",
                 message_type="ai_response",
                 content_text=err_msg,
                 content_kannada=err_msg_kn,
@@ -506,13 +515,15 @@ class ChatHandler:
                 grounding_status=self._grounding.validate("", exec_result),
                 created_at=datetime.now().isoformat()
             )
+            self._save_response(conv_id, msg)
+            return msg
 
         answer = self.answer_gen.generate(exec_result, req.message)
         evidence = self.evidence_builder.build_evidence(exec_result)
         cc = self._confidence.classify(exec_result)
         gv = self._grounding.validate(answer, exec_result)
         msg = ConversationMessageDTO(
-            message_id=str(uuid.uuid4()), conversation_id=conv_id,
+            message_id=str(uuid.uuid4()), conversation_id=conv_id or "",
             message_type="ai_response", content_text=answer,
             content_kannada=self._translate_answer(answer),
             sql_text=sql_text, query_id=exec_result.get("query_id"),
@@ -521,7 +532,7 @@ class ChatHandler:
             suggested_followups=self._generate_followups(exec_result),
             created_at=datetime.now().isoformat()
         )
-        self.conversation_manager.add_message(conv_id, msg)
+        self._save_response(conv_id, msg)
         return msg
 
     def _translate_answer(self, answer: str) -> str:

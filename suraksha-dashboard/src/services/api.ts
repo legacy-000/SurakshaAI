@@ -203,6 +203,7 @@ export const api = {
       message_type: res.message_type || 'ai_response',
       content_text: res.content_text || '',
       content_kannada: res.content_kannada,
+      conversation_id: res.conversation_id,
       sql_text: res.sql_text,
       chart_recommendation: res.chart_recommendation,
       evidence_refs: (res.evidence_refs || []).map((e: any) => ({
@@ -260,7 +261,27 @@ export const api = {
 
   getSocioDemographics() { return postToBackend('get_socio_demographics'); },
 
-  getNetwork(accusedName: string) { return postToBackend('get_network', { accused_name: accusedName }); },
+  getNetwork(accusedName: string, searchType: string = 'auto') { return postToBackend('get_network', { accused_name: accusedName, search_type: searchType }); },
+
+  networkAiQuery(question: string, nodes: any[], edges: any[], conversationId: string = '') {
+    return postToBackend('network_ai_query', { question, nodes, edges, conversation_id: conversationId });
+  },
+
+  networkListConversations() {
+    return postToBackend('network_list_conversations');
+  },
+
+  networkGetConversation(conversationId: string) {
+    return postToBackend('network_get_conversation', { conversation_id: conversationId });
+  },
+
+  networkCreateConversation() {
+    return postToBackend('network_create_conversation');
+  },
+
+  networkDeleteConversation(conversationId: string) {
+    return postToBackend('network_delete_conversation', { conversation_id: conversationId });
+  },
 
   getDashboardKpis() { return postToBackend('get_dashboard_kpis'); },
 
@@ -276,5 +297,35 @@ export const api = {
 
   textToSpeech(text: string, language: string) {
     return postToBackend('text_to_speech', { text, language }).then(r => r.audio_bytes);
-  }
+  },
+
+  // ── Chat Conversations ────────────────────────────────────────────
+  listConversations() {
+    return postToBackend('list_conversations');
+  },
+
+  getConversation(conversationId: string) {
+    return postToBackend('get_conversation', { conversation_id: conversationId });
+  },
+
+  deleteConversation(conversationId: string) {
+    return postToBackend('delete_conversation', { conversation_id: conversationId });
+  },
+
+  uploadFile(conversationId: string, file: File): Promise<{ status: string; file_name: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        postToBackend('upload_file', {
+          conversation_id: conversationId,
+          file_data: base64,
+          file_name: file.name,
+          mime_type: file.type || 'application/octet-stream',
+        }).then(resolve, reject);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  },
 };

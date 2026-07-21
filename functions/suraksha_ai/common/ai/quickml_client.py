@@ -102,14 +102,14 @@ class QuickMLClient:
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "stream": False,
-                "chat_template_kwargs": {"enable_thinking": True},
+                "chat_template_kwargs": {"enable_thinking": False},
             }
             if tools:
                 data["tools"] = tools
                 data["tool_choice"] = tool_choice
 
             logger.info("GLM chat: %d messages, tools=%s", len(messages), "yes" if tools else "no")
-            response = requests.post(GLM_URL, json=data, headers=headers, timeout=60)
+            response = requests.post(GLM_URL, json=data, headers=headers, timeout=10)
 
             if response.status_code != 200:
                 logger.error("GLM API returned status %d: %s",

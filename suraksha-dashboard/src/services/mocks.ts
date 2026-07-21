@@ -340,27 +340,137 @@ export const mocks = {
   },
   async getNetwork(accusedName: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
     await delay(600);
-    const tiers = ['LOW', 'MODERATE', 'ELEVATED', 'HIGH'] as const;
-    const nodes: GraphNode[] = accusedNames.slice(0, 8).map((n, i) => ({
-      id: `node_${i}`,
-      label: n,
-      node_type: 'accused',
-      cases: Math.floor(seededRandom(i + 100) * 8) + 1,
-      risk_tier: tiers[i % 4],
-    }));
+    const crimeTypes = ['Theft', 'Robbery', 'Burglary', 'Assault', 'Cyber Crime', 'Cheating'] as const;
+    const name = accusedName.toLowerCase();
+
+    // Bipartite: case nodes + accused nodes
+    interface CaseData { id: number; crime: string; accused: string[] }
+    const allCases: CaseData[] = [
+      { id: 101, crime: 'Theft', accused: ['Ravi Kumar', 'Suresh P', 'Rajesh K'] },
+      { id: 102, crime: 'Theft', accused: ['Ravi Kumar', 'Manoj R'] },
+      { id: 103, crime: 'Robbery', accused: ['Suresh P', 'Venkatesh G'] },
+      { id: 104, crime: 'Burglary', accused: ['Rajesh K', 'Manoj R', 'Prakash M'] },
+      { id: 105, crime: 'Robbery', accused: ['Venkatesh G', 'Kumar S'] },
+      { id: 106, crime: 'Burglary', accused: ['Manoj R', 'Anil K'] },
+      { id: 107, crime: 'Assault', accused: ['Prakash M', 'Kumar S', 'Sunil D'] },
+      { id: 108, crime: 'Theft', accused: ['Anil K', 'Gopal R', 'Ravi Kumar'] },
+      { id: 109, crime: 'Assault', accused: ['Sunil D', 'Gopal R'] },
+      { id: 110, crime: 'Cyber Crime', accused: ['Kumar S', 'Anil K', 'Suresh P'] },
+    ];
+
+    // Find matching cases
+    const matchedCaseIds = new Set<number>();
+    for (const c of allCases) {
+      if (c.accused.some(a => a.toLowerCase().includes(name) || name.includes(a.toLowerCase())))
+        matchedCaseIds.add(c.id);
+    }
+    if (matchedCaseIds.size === 0) {
+      // fallback: first few cases
+      [101, 102, 103, 104].forEach(id => matchedCaseIds.add(id));
+    }
+
+    // BFS to depth 2 via shared accused
+    const allCaseIds = new Set(matchedCaseIds);
+    const frontier = new Set(matchedCaseIds);
+    for (let d = 0; d < 2; d++) {
+      const next = new Set<number>();
+      for (const cid of Array.from(frontier)) {
+        const c = allCases.find(x => x.id === cid);
+        if (!c) continue;
+        for (const a of c.accused) {
+          for (const c2 of allCases) {
+            if (!allCaseIds.has(c2.id) && c2.accused.includes(a)) {
+              allCaseIds.add(c2.id);
+              next.add(c2.id);
+            }
+          }
+        }
+      }
+      frontier.clear();
+      next.forEach(id => frontier.add(id));
+    }
+
+    const sortedCases = allCases.filter(c => allCaseIds.has(c.id));
+    const involvedAccused = new Map<string, number[]>();
+    for (const c of sortedCases) {
+      for (const a of c.accused) {
+        if (!involvedAccused.has(a)) involvedAccused.set(a, []);
+        involvedAccused.get(a)!.push(c.id);
+      }
+    }
+
+    const riskFor = (count: number) => count >= 6 ? 'HIGH' as const : count >= 4 ? 'ELEVATED' as const : count >= 2 ? 'MODERATE' as const : 'LOW' as const;
+
+    const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
-    for (let i = 0; i < 14; i++) {
-      const s = Math.floor(seededRandom(i + 200) * nodes.length);
-      let t = Math.floor(seededRandom(i + 300) * nodes.length);
-      if (s === t) t = (t + 1) % nodes.length;
-      edges.push({
-        id: `edge_${i}`,
-        source: nodes[s].id,
-        target: nodes[t].id,
-        weight: Math.floor(seededRandom(i + 400) * 4) + 1,
-        shared_cases: [101 + i, 102 + i],
+    let nodeIdx = 0;
+    let edgeIdx = 0;
+
+    // Case nodes (square)
+    const caseNodeIds = new Map<number, string>();
+    for (const c of sortedCases) {
+      const nid = `case_${c.id}`;
+      caseNodeIds.set(c.id, nid);
+      nodes.push({
+        id: nid, label: `Case #${c.id}`, node_type: 'case',
+        cases: c.accused.length, crime_type: c.crime, risk_tier: 'LOW',
+        sub_label: c.crime,
+      });
+      nodeIdx++;
+    }
+
+    // Accused nodes (circle)
+    const accusedNodeIds = new Map<string, string>();
+    for (const [name, cids] of involvedAccused) {
+      const nid = `node_${nodeIdx++}`;
+      accusedNodeIds.set(name, nid);
+      const primaryCrime = allCases.find(c => c.id === cids[0])?.crime || 'Unknown';
+      nodes.push({
+        id: nid, label: name, node_type: 'accused',
+        cases: cids.length, risk_tier: riskFor(cids.length),
+        crime_type: primaryCrime, person_id: name,
+        sub_label: `${cids.length} case${cids.length > 1 ? 's' : ''}`,
       });
     }
+
+    // Case → Accused edges (solid)
+    for (const c of sortedCases) {
+      for (const a of c.accused) {
+        const src = caseNodeIds.get(c.id);
+        const tgt = accusedNodeIds.get(a);
+        if (src && tgt) {
+          edges.push({
+            id: `edge_${edgeIdx++}`, source: src, target: tgt,
+            weight: 1, shared_cases: [c.id],
+            connection_basis: `accused in Case #${c.id}`,
+          });
+        }
+      }
+    }
+
+    // Case → Case edges (dashed, shared accused)
+    const seenPairs = new Set<string>();
+    for (const ca of sortedCases) {
+      for (const cb of sortedCases) {
+        if (ca.id >= cb.id) continue;
+        const shared = ca.accused.filter(a => cb.accused.includes(a));
+        if (shared.length === 0) continue;
+        const key = `${ca.id}-${cb.id}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        const src = caseNodeIds.get(ca.id);
+        const tgt = caseNodeIds.get(cb.id);
+        if (src && tgt) {
+          edges.push({
+            id: `edge_${edgeIdx++}`, source: src, target: tgt,
+            weight: shared.length, shared_cases: [ca.id, cb.id],
+            connection_basis: `shared: ${shared.join(', ')}`,
+            edge_type: 'case_case',
+          });
+        }
+      }
+    }
+
     return { nodes, edges };
   },
   getDashboardKpis(): { label: string; value: string; change: string; icon: string }[] {

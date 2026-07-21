@@ -127,6 +127,8 @@ class GraphNodeDTO(BaseModel):
     node_type: str = "accused"
     cases: int = 0
     risk_tier: Optional[str] = None
+    crime_type: str = "Unknown"
+    person_id: Optional[str] = None
 
 
 class GraphEdgeDTO(BaseModel):
@@ -136,6 +138,7 @@ class GraphEdgeDTO(BaseModel):
     weight: int = 1
     shared_cases: list[int] = []
     evidence: list[dict[str, Any]] = []
+    connection_basis: str = "co-accused"
 
 
 class GraphProjectionDTO(BaseModel):

@@ -85,7 +85,7 @@ export const AnalyticsPage: React.FC = () => {
 
   const loadDemographics = useCallback(() => {
     const cached = cacheGet<any>('demo');
-    if (cached && cached._v === '5') { setDemographics(cached); setDemoError(null); setLoadingDemo(false); return; }
+    if (cached && cached._v === '11') { setDemographics(cached); setDemoError(null); setLoadingDemo(false); return; }
     setLoadingDemo(true); setDemoError(null);
     api.getSocioDemographics().then((data: any) => {
       if (data?.error) { setDemoError(data.error); setDemographics(null); return; }
@@ -500,6 +500,13 @@ export const AnalyticsPage: React.FC = () => {
             {demographics?._debug && (
               <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px', textAlign: 'right' }}>
                 v:{demographics._debug.v} a:{demographics._debug.a} c:{demographics._debug.c} cm:{demographics._debug.cm} map:{demographics._debug.map} overlap:{demographics._debug.hits}/{demographics._debug.uniq_ids} miss:{demographics._debug.miss} v{demographics._v || '?'}
+                {demographics._debug.ct_dist && <span> ct:{JSON.stringify(demographics._debug.ct_dist)}</span>}
+                {demographics._debug.sv && <span> sv:{JSON.stringify(demographics._debug.sv)}</span>}
+                {demographics._debug.sa && <span> sa:{JSON.stringify(demographics._debug.sa)}</span>}
+                {demographics._debug.sc && <span> sc:{JSON.stringify(demographics._debug.sc)}</span>}
+                {demographics._debug.cm_keys && <span> cm_keys:{JSON.stringify(demographics._debug.cm_keys)}</span>}
+                {demographics._debug.v_ids && <span> v_ids:{JSON.stringify(demographics._debug.v_ids)}</span>}
+                <span> raw:{JSON.stringify(demographics._debug)}</span>
               </div>
             )}
             {demoError && (

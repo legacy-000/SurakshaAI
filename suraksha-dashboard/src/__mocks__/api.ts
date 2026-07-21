@@ -34,10 +34,21 @@ export const api = {
   getAlerts: jest.fn().mockResolvedValue([
     { id: 'a1', severity: 'critical', title: 'Test Alert', description: 'Test description', rule_id: 'R1', trigger_condition: '>25%', created_at: new Date().toISOString(), acknowledged: false },
   ]),
-  getNetwork: jest.fn().mockResolvedValue({
-    nodes: [{ id: 'node_1', label: 'Ravi Kumar', node_type: 'accused', cases: 3, risk_tier: 'ELEVATED' }],
-    edges: [],
-  }),
+  getNetwork: jest.fn().mockImplementation((_name: string, _searchType?: string) => Promise.resolve({
+    nodes: [
+      { id: 'case_101', label: 'Case #101', node_type: 'case', cases: 3, crime_type: 'Theft', risk_tier: 'LOW', sub_label: 'Theft' },
+      { id: 'case_102', label: 'Case #102', node_type: 'case', cases: 2, crime_type: 'Theft', risk_tier: 'LOW', sub_label: 'Theft' },
+      { id: 'node_0', label: 'Ravi Kumar', node_type: 'accused', cases: 3, risk_tier: 'ELEVATED', crime_type: 'Theft', person_id: 'Ravi Kumar', sub_label: '3 cases' },
+      { id: 'node_1', label: 'Suresh P', node_type: 'accused', cases: 2, risk_tier: 'MODERATE', crime_type: 'Robbery', person_id: 'Suresh P', sub_label: '2 cases' },
+    ],
+    edges: [
+      { id: 'edge_0', source: 'case_101', target: 'node_0', weight: 1, shared_cases: [101], connection_basis: 'accused in Case #101' },
+      { id: 'edge_1', source: 'case_101', target: 'node_1', weight: 1, shared_cases: [101], connection_basis: 'accused in Case #101' },
+      { id: 'edge_2', source: 'case_102', target: 'node_0', weight: 1, shared_cases: [102], connection_basis: 'accused in Case #102' },
+      { id: 'edge_3', source: 'case_101', target: 'case_102', weight: 1, shared_cases: [101, 102], connection_basis: 'shared: Ravi Kumar', edge_type: 'case_case' },
+    ],
+  })),
+  networkAiQuery: jest.fn().mockResolvedValue({ answer: 'Analysis complete.', summary: '2 criminals, 1 connection.' }),
   getOffenderProfile: jest.fn().mockResolvedValue({
     entity_name: 'Ravi Kumar',
     total_score: 56,

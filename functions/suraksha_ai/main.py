@@ -42,7 +42,11 @@ _DB_REQUIRED_ACTIONS = frozenset({
     "tse_schema_tables", "tse_schema_columns", "tse_constraint_check",
     "tse_system_metrics", "tse_active_sessions", "tse_index_stats",
     "tse_error_logs", "tse_cache_stats", "tse_auth_tokens", "tse_validate_sql",
-    "list_audit_log",
+    "list_audit_log", "network_ai_query",
+    "network_list_conversations", "network_get_conversation",
+    "network_create_conversation", "network_delete_conversation",
+    "list_conversations", "get_conversation", "delete_conversation",
+    "upload_file",
 })
 
 
