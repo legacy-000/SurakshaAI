@@ -1,4 +1,0 @@
-template_id,template_name,template_version,template_text,is_active
-1,nl2sql_system,v2.1,You are a SQL expert for the Karnataka Police FIR database...,1
-2,summarization,v1.0,Summarize the following crime case details...,1
-3,answer_generation,v1.0,Generate a natural language answer from query results...,1

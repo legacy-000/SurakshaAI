@@ -1,3 +1,0 @@
-# Keep generated reports directory tracked in git but ignore the actual generated PDF files
-*.pdf
-!#gitkeep

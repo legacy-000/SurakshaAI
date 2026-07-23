@@ -1,7 +1,0 @@
-{
-  "name": "suraksha-frontend",
-  "framework": "nextjs",
-  "build_command": "npm run build",
-  "output_dir": "out",
-  "source": "."
-}

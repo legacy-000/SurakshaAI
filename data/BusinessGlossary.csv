@@ -1,6 +1,0 @@
-term_id,term_english,term_kannada,definition_english,definition_kannada,related_tables,category
-1,FIR,FIR,First Information Report,ಪ್ರಥಮ ಮಾಹಿತಿ ವರದಿ,"[""CaseMaster""]",legal
-2,Theft,ಕಳ್ಳತನ,Unlawful taking of property,ಆಸ್ತಿಯನ್ನು ಅಕ್ರಮವಾಗಿ ತೆಗೆದುಕೊಳ್ಳುವುದು,"[""CaseMaster"",""CrimeSubHead""]",crime_type
-3,Accused,ಆರೋಪಿ,Person charged with a crime,ಅಪರಾಧದ ಆರೋಪ ಹೊತ್ತ ವ್ಯಕ್ತಿ,"[""Accused""]",legal
-4,Charge Sheet,ಚಾರ್ಜ್ಶೀಟ್,Formal police report filed in court,ನ್ಯಾಯಾಲಯದಲ್ಲಿ ಸಲ್ಲಿಸಲಾದ ನಿಯಮಬದ್ಧ ಪೊಲೀಸ್ ವರದಿ,"[""ChargesheetDetails""]",legal
-5,Investigation,ತನಿಖೆ,Police inquiry into a crime,ಅಪರಾಧದ ಬಗ್ಗೆ ಪೊಲೀಸ್ ತನಿಖೆ,"[""CaseMaster"",""Investigation""]",procedure
