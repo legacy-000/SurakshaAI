@@ -323,12 +323,13 @@
 ## Table 17: `conversations`
 
 > Chat conversation threads (global and case-scoped).  
-> **Columns**: 4
+> **Columns**: 4  
+> **Note**: `case_id = NULL` → global chat; `case_id` set → case-scoped investigation chat. `user_id` is currently nullable and not populated in all flows — populate it during Catalyst migration for proper user-conversation tracking.
 
 | # | Column Name | Data Type | Default | Unique | Mandatory | Search Index | PII/ePHI | Notes |
 |---|-------------|-----------|---------|--------|-----------|--------------|----------|-------|
 | 1 | `title` | VarChar | *(empty)* | Off | Off | Off | Off | Auto-generated from first message |
-| 2 | `user_id` | Foreign Key | `NULL` | — | Off | **On** | Off | References → `users` |
+| 2 | `user_id` | Foreign Key | `NULL` | — | Off | **On** | Off | References → `users` (populate on create) |
 | 3 | `case_id` | Foreign Key | `NULL` | — | Off | **On** | Off | References → `cases` (null = global chat) |
 | 4 | `language` | VarChar | `en` | Off | Off | Off | Off | `en` / `kn` |
 
@@ -376,14 +377,16 @@
 | # | Column Name | Data Type | Default | Unique | Mandatory | Search Index | PII/ePHI | Notes |
 |---|-------------|-----------|---------|--------|-----------|--------------|----------|-------|
 | 1 | `case_id` | Foreign Key | `NULL` | — | **On** | **On** | Off | References → `cases` |
-| 2 | `category` | VarChar | *(empty)* | Off | Off | **On** | Off | e.g. Forensic, Documentary, Digital |
+| 2 | `category` | VarChar | *(empty)* | Off | Off | **On** | Off | See 17 valid categories below |
 | 3 | `filename` | VarChar | *(empty)* | Off | **On** | Off | Off | Catalyst File Store file ID |
 | 4 | `original_name` | VarChar | *(empty)* | Off | Off | Off | Off | Original upload filename |
 | 5 | `mime` | VarChar | *(empty)* | Off | Off | Off | Off | e.g. `application/pdf` |
 | 6 | `size` | BigInt | `0` | Off | Off | Off | Off | File size in bytes |
 | 7 | `uploaded_by` | VarChar | *(empty)* | Off | Off | **On** | Off | Officer name |
-| 8 | `ai_summary` | Text | *(empty)* | — | Off | — | Off | GLM-generated summary |
+| 8 | `ai_summary` | Text | *(empty)* | — | Off | — | Off | GLM-generated summary (populated on upload) |
 | 9 | `remarks` | Text | *(empty)* | — | Off | — | Off | Officer remarks |
+
+**Valid `category` values (17)**: Evidence, FIR Documents, Charge Sheets, Victim Records, Suspect Records, Witness Statements, Forensic Reports, Medical Reports, Phone Records, CCTV Footage, Images, Videos, Audio Recordings, Financial Documents, Intelligence Reports, Court Documents, Miscellaneous
 
 ---
 
@@ -407,7 +410,8 @@
 ## Table 22: `audit_logs`
 
 > Immutable record of every system access for governance compliance.  
-> **Columns**: 17
+> **Columns**: 17  
+> **Note**: `prev_value` and `new_value` columns exist in the schema but are NOT currently populated by the audit middleware — wire them during Catalyst migration for update-action audit trails.
 
 | # | Column Name | Data Type | Default | Unique | Mandatory | Search Index | PII/ePHI | Notes |
 |---|-------------|-----------|---------|--------|-----------|--------------|----------|-------|
@@ -462,6 +466,278 @@
 | 4 | `reason` | Text | *(empty)* | — | Off | — | Off | |
 | 5 | `status` | VarChar | `pending` | Off | Off | **On** | Off | `pending` / `approved` / `rejected` |
 | 6 | `reviewed_by` | VarChar | *(empty)* | Off | Off | Off | Off | |
+
+---
+
+## Computed Features (No Dedicated Table)
+
+These features are computed on-the-fly by backend code. They are NOT stored in any table — they are generated from queries across existing tables and returned directly in API responses. No Datastore tables needed, but the computation logic must be preserved during router migration.
+
+| Feature | Endpoint | Source Tables | What It Produces |
+|---------|----------|---------------|------------------|
+| **Chargesheet** | `POST /cases/{id}/chargesheet` | cases, case_accused, accused, case_victim, victims, witnesses, evidence_documents, investigations, officers | Full chargesheet draft with applicable BNS/IPC sections via `_infer_sections()` mapping. Also inserts a `TimelineEvent` ("Chargesheet Generated"). |
+| **AI Recommendations** | `GET /command/overview` | cases, predictions, accused, behavior_profiles, associations | Up to 10 action items with `action`, `priority`, `impact`, `risk_score`, `confidence`, `category`. Rule-based, scope-adaptive. |
+| **AI Insights** | `GET /command/overview` | cases, accused, behavior_profiles, investigations, transactions | Up to 8 intelligence insights with `title`, `detail`, `severity`, `category`. |
+| **Intelligence Stream** | `GET /workspace/overview`, `GET /command/overview` | timeline_events, cases | Recent chronological events with case FIR cross-reference. |
+| **Neighbor Intelligence** | `GET /command/overview` | cases, accused, associations, geo.py | Cross-border crime intelligence for neighboring districts/subdivisions. |
+| **Station Hotspots** | `GET /command/overview` | cases | Crime density by station within jurisdiction. |
+| **Forecast Analysis** | `GET /command/overview` | cases, predictions | Current vs. previous period trend comparison + risk summary. |
+| **District Ranking** | `GET /command/overview` | cases | Per-district total, solved, clearance rate (state/range scope only). |
+| **Investigation Summary** | `GET /command/overview` | investigations | Active, pending, solved, cold counts + average progress. |
+| **Similar Cases** | `GET /cases/{id}/similar` | cases, case_accused | Scored similarity by crime_type, district, modus_operandi overlap. |
+| **Victim Intelligence** | `GET /victims/{id}/intelligence` | victims, case_victim, cases, case_accused, accused | Case history, district/crime breakdowns, timeline, AI-generated text summary. |
+| **Victim Relationships** | `GET /victims/{id}/relationships` | victims, case_victim, cases, case_accused, accused, witnesses, investigations, officers | Full relationship graph (nodes + edges) for visualization. |
+| **Vulnerability Assessment** | `GET /victims/vulnerability/assessment` | victims, case_victim | Top 20 most-victimized individuals with risk level and contributing factors. |
+| **Risk Factors** | `GET /socio/risk-factors` | accused, behavior_profiles | Correlation between social indicators and average risk scores. |
+| **Crime by Demographic** | `GET /socio/crime-by-demographic` | cases, case_accused, accused | Top crime types per socio-economic band. |
+| **Offender Ego Network** | `GET /network/accused/{id}` | accused, associations | Direct associate graph for a single accused person. |
+| **Money Flow Graph** | `GET /financial/graph` | financial_accounts, transactions | Node (account) + edge (transaction) graph for visualization. |
+
+### BNS/IPC Section Mapping (Chargesheet)
+
+The `_infer_sections()` function in `cases.py` maps crime types to applicable legal sections. This is hardcoded logic that must be preserved:
+
+| Crime Type | Applicable Sections |
+|-----------|-------------------|
+| Theft | BNS 303 (Theft), BNS 305 (Snatching) |
+| Burglary | BNS 305 (House-breaking), BNS 303 (Theft) |
+| Robbery | BNS 309 (Robbery), BNS 310 (Dacoity) |
+| Vehicle Theft | BNS 303 (Theft), MV Act 379 |
+| Chain Snatching | BNS 304 (Snatching), BNS 309 (Robbery) |
+| Assault | BNS 115 (Voluntarily causing hurt), BNS 117 (Grievous hurt) |
+| Murder | BNS 101 (Murder), BNS 103 (Culpable homicide) |
+| Kidnapping | BNS 137 (Kidnapping), BNS 138 (Abduction) |
+| Domestic Violence | DV Act 498A, BNS 85 (Cruelty by husband) |
+| Cyber Fraud | IT Act 66, IT Act 66C (Identity theft), BNS 318 (Cheating) |
+| Bank Fraud | BNS 318 (Cheating), BNS 316 (Criminal breach of trust) |
+| UPI Scam | IT Act 66, BNS 318 (Cheating), IT Act 66D |
+| Extortion | BNS 308 (Extortion), BNS 351 (Criminal intimidation) |
+| Drug Trafficking | NDPS 20 (Cannabis), NDPS 22 (Psychotropic), NDPS 27A |
+| Human Trafficking | BNS 143 (Trafficking), BNS 144 |
+| Rioting | BNS 189 (Rioting), BNS 190 (Armed rioting), BNS 191 |
+
+---
+
+## Catalyst File Store — Folder Structure
+
+File uploads are currently saved to local disk. In Catalyst, create these **File Store folders** (Console → File Store → Create Folder):
+
+| # | Folder Name | Purpose | Used By |
+|---|-------------|---------|---------|
+| 1 | `evidence_documents` | Case evidence files (PDFs, images, videos, forensics) | `POST /investigation/{id}/evidence`, `GET /investigation/evidence/{id}/download`, `DELETE /investigation/evidence/{id}` |
+| 2 | `witness_documents` | Witness statement attachments | `POST /investigation/{id}/witnesses`, `GET /investigation/witnesses/document/{id}` |
+| 3 | `chat_uploads` | Files uploaded in chat messages (global + case-scoped) | `POST /chat/message`, `POST /investigation/{id}/chat` |
+
+**Current local directory structure (to be replaced):**
+
+```
+uploads/
+├── {case_id}/                    # Per-case evidence
+│   ├── {uuid}_{filename}         # Evidence files
+│   ├── witnesses/                # Witness documents
+│   │   └── {uuid}_{filename}
+│   └── chat_uploads/             # Case-scoped chat files
+│       └── {uuid}_{filename}
+└── global_chat/                  # Global chat files
+    └── {uuid}_{filename}
+```
+
+**Supported file types for text extraction**: `.pdf`, `.docx`, `.txt`, `.csv`, `.xlsx`, `.xls`
+
+---
+
+## RBAC Special Role Sets
+
+Beyond the 15-role capability matrix, the backend defines special role groups for approval workflows:
+
+### Approver Roles (can approve stage advancement requests)
+
+Must have BOTH `can_investigate: true` AND `can_view_audit: true`:
+
+```
+APPROVER_ROLES = {sho, pi, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp}
+```
+
+### Emergency Access Roles (can override access controls)
+
+DSP and above — emergency override bypasses normal access request workflow:
+
+```
+EMERGENCY_ROLES = {dsp, sp, dig, ig, addl_dgp, dgp}
+```
+
+### Role Capability Quick Reference
+
+| Capability | Roles That Have It |
+|-----------|-------------------|
+| `can_view_pii` | sub_inspector, pi, sho, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp |
+| `can_view_audit` | pi, sho, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp |
+| `can_investigate` | asi, sub_inspector, pi, sho, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp |
+| `can_view_sql` | sub_inspector, pi, sho, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp, analyst |
+| `can_export` | sub_inspector, pi, sho, ci, acp, dsp, sp, dig, ig, addl_dgp, dgp, analyst |
+| `command_level` set | pi, sho (station), ci, acp, dsp (subdivision), sp (district), dig, ig (range), addl_dgp, dgp (state) |
+
+---
+
+## Constants & Enumerations
+
+### Crime Types (17 → 5 Heads)
+
+| Crime Type | Crime Head |
+|-----------|-----------|
+| Theft | Property |
+| Burglary | Property |
+| Robbery | Property |
+| Vehicle Theft | Property |
+| Chain Snatching | Property |
+| Assault | Body |
+| Murder | Body |
+| Kidnapping | Body |
+| Domestic Violence | Body |
+| Cyber Fraud | Financial |
+| Bank Fraud | Financial |
+| UPI Scam | Financial |
+| Extortion | Financial |
+| Drug Trafficking | Narcotics |
+| Human Trafficking | Body |
+| Rioting | Public Order |
+
+### Karnataka Districts (15)
+
+| District | Range | Geo (lat, lon) |
+|----------|-------|----------------|
+| Bengaluru City | Bengaluru | 12.9716, 77.5946 |
+| Bengaluru Rural | Bengaluru | 13.1986, 77.7066 |
+| Mysuru | Mysuru | 12.2958, 76.6394 |
+| Mangaluru | Mangaluru | 12.9141, 74.8560 |
+| Hubballi-Dharwad | Belgaum | 15.3647, 75.1240 |
+| Belagavi | Belgaum | 15.8497, 74.4977 |
+| Kalaburagi | North Eastern | 17.3297, 76.8343 |
+| Ballari | Central | 15.1394, 76.9214 |
+| Vijayapura | Belgaum | 16.8302, 75.7100 |
+| Davanagere | Central | 14.4644, 75.9218 |
+| Shivamogga | Central | 13.9299, 75.5681 |
+| Tumakuru | Bengaluru | 13.3379, 77.1173 |
+| Udupi | Mangaluru | 13.3409, 74.7421 |
+| Hassan | Mysuru | 13.0073, 76.0962 |
+| Mandya | Mysuru | 12.5218, 76.8951 |
+
+### Case Statuses (5)
+
+`Open` → `Under Investigation` → `Chargesheeted` → `Closed` / `Cold`
+
+### Severity Levels (4)
+
+`Low`, `Medium`, `High`, `Critical`
+
+### Investigation Stages (12)
+
+1. FIR Registered
+2. Preliminary Inquiry
+3. Spot Inspection
+4. Witness Examination
+5. Evidence Collection
+6. Suspect Identification
+7. Arrest
+8. Forensic Analysis
+9. Charge Sheet Preparation
+10. Charge Sheet Filed
+11. Court Proceedings
+12. Case Closed
+
+### Accused Status Values (5)
+
+`Suspect`, `Arrested`, `Chargesheeted`, `Convicted`, `Absconding`
+
+### Risk Bands (4)
+
+`Low` (0–25), `Medium` (25–50), `High` (50–75), `Critical` (75–100)
+
+### Financial Channels (4)
+
+`UPI`, `NEFT`, `IMPS`, `Crypto`
+
+### Account Types (4)
+
+`Savings`, `Current`, `Wallet`, `Crypto`
+
+### Socio-Economic Levels (5)
+
+`Low`, `Lower-Mid`, `Middle`, `Upper-Mid`, `High`
+
+### Education Levels (6)
+
+`Illiterate`, `Primary`, `Secondary`, `PUC`, `Graduate`, `Post-Graduate`
+
+### Modus Operandi Variants (16 crime types × 2-3 each)
+
+| Crime Type | MO Variants |
+|-----------|-------------|
+| Theft | Lock-picking, Distraction theft, Shoplifting |
+| Burglary | Forced entry, Wall-cut, Key duplication |
+| Robbery | Armed holdup, Snatching |
+| Vehicle Theft | Key cloning, Towing, Hot-wiring |
+| Chain Snatching | Bike-borne, Pedestrian approach |
+| Assault | Road rage, Personal enmity, Alcohol-fuelled |
+| Murder | Sharp weapon, Blunt force, Strangulation |
+| Kidnapping | Lure-and-abduct, Ransom-demand |
+| Domestic Violence | Physical abuse, Dowry harassment |
+| Cyber Fraud | Phishing, OTP fraud, SIM swap |
+| Bank Fraud | Forged cheque, Fake KYC, Account takeover |
+| UPI Scam | QR code scam, Fake refund, Collect-request fraud |
+| Extortion | Threat calls, Blackmail, Protection racket |
+| Drug Trafficking | Street peddling, Courier network |
+| Human Trafficking | Forced labour, Sexual exploitation |
+| Rioting | Communal, Mob violence |
+
+### Named Criminal Gangs (7)
+
+Chikpet Gang, Ring Road Crew, KR Market Syndicate, Silk Route Network, Night Owls, Cyber Hydra, Highway Hawks
+
+### Audit Action Types (9)
+
+`view`, `create`, `update`, `delete`, `login`, `upload`, `approve`, `reject`, `export`
+
+### Demo Users (17 Accounts)
+
+| Username | Role | District | Password |
+|----------|------|----------|----------|
+| dgp_kumar | dgp | *(state)* | password |
+| addl_dgp_rao | addl_dgp | *(state)* | password |
+| igp_patil | ig | Bengaluru Range | password |
+| dig_hegde | dig | Bengaluru Range | password |
+| sp_gowda | sp | Bengaluru City | password |
+| sp_sharma | sp | Mysuru | password |
+| dsp_reddy | dsp | Bengaluru City | password |
+| acp_nair | acp | Bengaluru City | password |
+| ci_swamy | ci | Bengaluru City | password |
+| sho_raju | sho | Bengaluru City | password |
+| pi_venkat | pi | Bengaluru City | password |
+| si_meena | sub_inspector | Bengaluru City | password |
+| asi_ravi | asi | Bengaluru City | password |
+| hc_kumar | head_constable | Bengaluru City | password |
+| pc_suresh | constable | Bengaluru City | password |
+| analyst_priya | analyst | Bengaluru City | password |
+| commander_raj | dgp | *(state)* | password |
+
+---
+
+## Known Schema Gaps (Pre-Migration Fixes)
+
+Issues found during audit that should be addressed during or before Catalyst migration:
+
+| # | Gap | Current State | Recommendation |
+|---|-----|---------------|----------------|
+| G1 | `conversations.user_id` never populated | FK exists but always NULL | Populate user_id from X-User-Id header when creating conversations |
+| G2 | `audit_logs.prev_value` / `new_value` never populated | Columns exist but middleware doesn't set them | Wire change-tracking in audit middleware for update/delete actions |
+| G3 | No witness update/delete endpoints | Can add witnesses but not edit or remove | Add PUT and DELETE endpoints for witnesses during migration |
+| G4 | `cases` update endpoint doesn't allow updating `occurrence_date`, `latitude`, `longitude`, `is_financial` | These fields are set only at FIR creation | Add these to the updatable field list |
+| G5 | No case status transition validation | Any status can be set without checking valid transitions | Add state machine: Open→Under Investigation→Chargesheeted→Closed/Cold |
+| G6 | **Bug**: `api.ts` sends `"status"` field but `investigation.py` expects `"action"` for access request review | Access request reviews fail with 422 | Fix frontend: change `fd.append("status", status)` → `fd.append("action", status)` in `reviewAccessRequest()` |
+| G7 | Chargesheet not persisted | Computed on every request, lost if browser closes | Consider caching generated chargesheets in a `chargesheets` table or Datastore |
+| G8 | Evidence `ai_summary` is mock | Returns static template regardless of file content | Replace `_mock_summary()` with GLM 4.7 document analysis call |
+| G9 | No pagination on notes/witnesses/evidence/approvals | All records returned without limit/offset | Add `limit`/`offset` parameters to these list endpoints |
+| G10 | `MyAccess.tsx` ALL_SCREENS list missing `work` and `victims` | Screen access matrix displayed to users is incomplete | Add missing screens to frontend constant |
 
 ---
 

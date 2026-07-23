@@ -684,11 +684,12 @@ Every endpoint follows this pattern:
 | Endpoint | Challenge |
 |----------|-----------|
 | GET /cases | Filter + pagination, straightforward ZCQL |
-| GET /cases/{id} | Needs JOINs: case → case_accused → accused, case → case_victim → victims, case → investigation → officer. **Workaround**: 4-5 sequential queries, merge in Python |
-| POST /cases | Insert into cases table, parse form data |
-| PUT /cases/{id} | Update row by ROWID |
-| POST /cases/{id}/chargesheet | JOIN case_accused, case_victim, witnesses — 3 sequential queries |
-| GET /cases/{id}/similar | Filter by crime_type/district, score in Python |
+| GET /cases/filters | 3 DISTINCT queries for dropdowns → aggregate in Python |
+| GET /cases/{id} | Needs JOINs: case → case_accused → accused, case → case_victim → victims, case → investigation → officer, case → timeline_events. **Workaround**: 5 sequential queries, merge in Python |
+| POST /cases | Insert into cases table, parse multipart form. Auto-generates `fir_number` if blank. Creates `TimelineEvent`. Sets `status=Open`, `reported_date=now`. |
+| PUT /cases/{id} | Update row by ROWID. Updatable fields: title, description, crime_type, crime_head, modus_operandi, severity, district, station, location_name, status, loss_amount. |
+| POST /cases/{id}/chargesheet | JOIN case_accused, case_victim, witnesses, evidence_documents, investigations — 6 sequential queries. `_infer_sections()` maps crime_type → BNS/IPC sections (hardcoded map for 17 types, must be preserved). Creates a `TimelineEvent` ("Chargesheet Generated"). **Not persisted** — computed on every request. |
+| GET /cases/{id}/similar | Filter by crime_type/district, score by MO overlap in Python |
 
 #### 5.3 `analytics.py` — Very High complexity (11 endpoints)
 
@@ -761,26 +762,62 @@ All endpoints use GROUP BY on accused demographics.
 
 #### 5.10 `dashboards.py` — Very High complexity
 
-The Command Center (`/api/command/overview`) is the most complex endpoint — it aggregates data across 8+ tables for the strategic dashboard.
+Two major endpoints. The Command Center is the most complex in the entire app.
 
-**Strategy**: Fetch bulk data once, compute all dashboard sections in Python:
-1. Fetch all cases (in scope) → compute KPIs, trends, district breakdown
-2. Fetch predictions → forecast section
+**`GET /workspace/overview`** returns:
+- `officer` (from Ctx), `can_command` (boolean)
+- `kpis` (4 items, varies by role — analyst vs command vs field)
+- `my_cases` (up to 8, territory-scoped)
+- `stream` (up to 8 recent timeline events joined with cases)
+
+**`GET /command/overview`** returns ALL of:
+- `scope`, `command_level`, `district`, `subdivision`, `range_name`
+- `kpis` (10 fields: total_cases, open, clearance_rate, firs_this_month, firs_change, arrests_month, by_status, pending_cases, chargesheet_rate, conviction_rate)
+- `stream` (12 events), `alerts` (8), `offenders` (8), `predictions` (8)
+- `district_breakdown`, `crime_type_breakdown`
+- `ai_insights` (up to 8 — computed by `_ai_insights()`, queries 5+ tables)
+- `ai_recommendations` (up to 10 — computed by `_ai_recommendations()`, scope-adaptive rule engine)
+- `neighbor_intel` (cross-border intelligence from geo.py neighbors)
+- `station_performance`, `investigation_summary`, `district_ranking`, `station_hotspots`
+- `forecast_analysis` (crime trend comparison + risk summary)
+
+**Strategy**: Fetch bulk data once per table, compute all sections in Python:
+1. Fetch all cases (in scope) → KPIs, trends, district breakdown, crime type breakdown, station performance
+2. Fetch predictions → forecast section + forecast analysis
 3. Fetch alerts → alert stream
-4. Fetch accused + profiles → top offenders
-5. Fetch associations → network intelligence
+4. Fetch accused + behavior_profiles → top offenders + AI insights
+5. Fetch associations → neighbor intelligence
+6. Fetch investigations → investigation summary
+7. Fetch timeline_events + cases → intelligence stream
+8. Run `_ai_insights()` and `_ai_recommendations()` with fetched data
 
-#### 5.11 `investigation.py` — High complexity (25+ endpoints)
+#### 5.11 `investigation.py` — High complexity (28 endpoints)
 
 Mix of CRUD and complex queries. File uploads move to Catalyst File Store (Phase 7).
 
-#### 5.12 `victims.py` — High complexity
+| Group | Endpoints | Challenge |
+|-------|-----------|-----------|
+| Investigation bundle | GET /{case_id} | JOIN investigations + officers + cases + counts of notes/evidence/witnesses |
+| Stage management | POST /{case_id}/stage | Update investigation row |
+| Notes CRUD | GET/POST notes, POST pin, DELETE note | Simple ZCQL, no JOINs |
+| Witnesses | GET/POST witnesses, GET document | File upload → File Store. PII masking on list. |
+| Victims (case-scoped) | GET/POST/PUT victims, POST link, DELETE unlink | Multi-table: victims + case_victim. PII masking. |
+| Evidence | GET/POST evidence, GET download, DELETE | File upload → File Store. `ai_summary` → GLM. |
+| Approvals | POST request, GET list, POST review, GET pending | Stage approvals table. APPROVER_ROLES check. |
+| Access control | POST request, GET list, POST review, POST emergency | Access requests table. EMERGENCY_ROLES (DSP+) check. |
+| Case chat | GET/POST chat | Conversation with case_id set. NLQ engine + file upload. |
+
+#### 5.12 `victims.py` — High complexity (7 endpoints)
 
 | Endpoint | Challenge |
 |----------|-----------|
-| GET /overview | Multiple aggregates |
-| GET /intelligence/{id} | Cross-table: victim → case_victim → cases → case_accused → accused |
-| GET /relationships/{id} | Graph construction from 5+ tables |
+| GET /overview | Multiple aggregates: total, repeat_victims, by_gender, by_age (buckets), by_district. All GROUP BY → Python aggregation. |
+| GET /crime-types | JOIN case_victim + cases → aggregate crime_type counts |
+| GET /list | Paginated list with case_count per victim. JOIN victims + case_victim + cases. PII masking. |
+| GET /vulnerability/assessment | Top 20 by case_count with risk_level and contributing_factors. JOIN victims + case_victim. |
+| GET /{id}/intelligence | Cross-table: victim → case_victim → cases → case_accused → accused. Builds case history, district/crime breakdowns, timeline, AI text summary (computed, not stored). |
+| GET /{id}/relationships | Graph from 5+ tables: victim, case_victim, cases, case_accused, accused, witnesses, investigations, officers. Builds nodes + edges for relationship visualization. |
+| GET /{id} | Victim detail with linked cases via case_victim JOIN. PII masking. |
 
 #### 5.13 `audit.py` — Medium complexity
 
@@ -795,9 +832,12 @@ Territory scoping in `_scope_query()` translates to ZCQL WHERE clause with `IN (
 
 | Endpoint | Migration |
 |----------|-----------|
-| GET /conversations | Simple ZCQL |
-| POST /message | Calls NLQ v2 (Phase 4), stores in messages table |
-| DELETE /conversations/{id} | Delete conversation + associated messages |
+| GET /conversations | Simple ZCQL SELECT, ordered by MODIFIEDTIME DESC |
+| GET /conversations/{id} | Fetch conversation + all messages by conversation_id |
+| POST /message | Multipart form (message, conversation_id, language, optional file upload). Calls NLQ v2 (Phase 4). Stores user message + assistant response in `messages` table with evidence_json, grounding_json, reasoning_json, sql_text, intent. File uploads → File Store (Phase 7). Entity extraction via `fileparse.py`. |
+| DELETE /conversations/{id} | Delete conversation + all associated messages (2 sequential deletes) |
+
+**Note**: Case-scoped chat lives in `investigation.py` (GET/POST `/investigation/{case_id}/chat`), not here. Both use the same NLQ engine and Message model but case chat sets `conversation.case_id`.
 
 ---
 
@@ -882,15 +922,17 @@ Functions:
 
 Move evidence document and witness file uploads from local disk to Catalyst File Store.
 
-### Affected Endpoints
+### Affected Endpoints (7 total)
 
 | Endpoint | Current | After |
 |----------|---------|-------|
-| POST /investigation/{id}/evidence | Saves to `uploads/` directory | Upload to Catalyst File Store → store file_id in Datastore |
+| POST /investigation/{id}/evidence | Saves to `uploads/{case_id}/` | Upload to Catalyst File Store `evidence_documents` folder → store file_id in Datastore |
 | GET /investigation/evidence/{id}/download | `FileResponse(path)` | Stream from Catalyst File Store |
 | DELETE /investigation/evidence/{id} | `os.remove(path)` | Delete from Catalyst File Store |
-| POST /investigation/{id}/witnesses | Saves doc to `uploads/` | Upload to Catalyst File Store |
+| POST /investigation/{id}/witnesses | Saves doc to `uploads/{case_id}/witnesses/` | Upload to Catalyst File Store `witness_documents` folder |
 | GET /investigation/witnesses/document/{id} | `FileResponse(path)` | Stream from Catalyst File Store |
+| POST /chat/message (with file) | Saves to `uploads/global_chat/` | Upload to Catalyst File Store `chat_uploads` folder |
+| POST /investigation/{id}/chat (with file) | Saves to `uploads/{case_id}/chat_uploads/` | Upload to Catalyst File Store `chat_uploads` folder |
 
 ### Catalyst File Store API Pattern
 
@@ -916,11 +958,20 @@ folder.delete_file(file_id)
 1. Go to Catalyst Console → File Store
 2. Create folder: "evidence_documents"
 3. Create folder: "witness_documents"
-4. Note the folder IDs
-5. Set in environment variables:
+4. Create folder: "chat_uploads"
+5. Note the folder IDs
+6. Set in environment variables:
    EVIDENCE_FOLDER_ID=<id>
    WITNESS_FOLDER_ID=<id>
+   CHAT_UPLOADS_FOLDER_ID=<id>
 ```
+
+### Evidence AI Summary
+
+Currently `_mock_summary()` in `investigation.py` returns a static template. During migration, replace with a GLM 4.7 call that:
+1. Extracts text from the uploaded file (using existing `fileparse.py`)
+2. Sends extracted text to GLM with system prompt: "Summarize this evidence document for a police investigation"
+3. Stores the GLM-generated summary in `evidence_documents.ai_summary`
 
 ---
 
@@ -1017,22 +1068,75 @@ const BASE = "https://<project-domain>.catalyst.zoho.com/baas/v1/project/<projec
 const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8077/api";
 ```
 
-### Step 4: Validation Checklist
+### Step 4: Validation Checklist (30 Tests)
 
-| # | Test | Command / Action | Expected |
-|---|------|-----------------|----------|
-| 1 | Health check | `curl <base>/api/health` | `{"status": "ok", "llm_provider": "catalyst"}` |
-| 2 | Login | POST /api/auth/login with dgp/password | User object with role, permissions |
-| 3 | Cases list | GET /api/cases | 260 cases with all fields |
-| 4 | Case detail | GET /api/cases/1 | Case with accused, victims, investigation |
-| 5 | Analytics overview | GET /api/analytics/overview | KPIs: total, open, solved, clearance |
-| 6 | Crime trend | GET /api/analytics/trend | Monthly time series |
-| 7 | Chat NLQ | POST /api/chat/message "How many theft cases?" | GLM-generated answer with evidence |
-| 8 | Forecasting | GET /api/forecasting/predictions | Prophet-generated predictions |
-| 9 | Audit trail | GET /api/audit/summary (as PI role) | Scoped audit data |
-| 10 | File upload | POST evidence to a case | File stored in Catalyst File Store |
-| 11 | RBAC | GET /api/audit/summary (as constable) | 403 Forbidden |
-| 12 | Territory scope | GET /api/cases (as SP of Mysuru) | Only Mysuru district cases |
+#### Core
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 1 | Health check | GET /api/health | `{"status": "ok", "llm_provider": "catalyst"}` |
+| 2 | Login (DGP) | POST /api/auth/login dgp_kumar/password | User object with state scope, all screens |
+| 3 | Login (constable) | POST /api/auth/login pc_suresh/password | Limited screens, no PII/audit |
+| 4 | Demo users | GET /api/auth/users | 17 demo accounts listed |
+
+#### Cases & FIR
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 5 | Cases list | GET /api/cases | 260 cases with all fields |
+| 6 | Case filters | GET /api/cases/filters | 17 crime types, 15 districts, 5 statuses |
+| 7 | Case detail | GET /api/cases/1 | Case with accused[], victims[], investigation, timeline[] |
+| 8 | Create FIR | POST /api/cases (title, crime_type, district) | New case with auto-generated fir_number, status=Open |
+| 9 | Update case | PUT /api/cases/{id} (status=Chargesheeted) | Updated status |
+| 10 | Chargesheet | POST /api/cases/{id}/chargesheet | Draft with accused, victims, witnesses, evidence, applicable_sections (BNS/IPC) |
+| 11 | Similar cases | GET /api/cases/{id}/similar | Scored list by crime_type/district/MO |
+
+#### Analytics & Dashboards
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 12 | Analytics overview | GET /api/analytics/overview | KPIs: total, open, solved, clearance |
+| 13 | Crime trend | GET /api/analytics/trend | Monthly time series |
+| 14 | Hotspot dashboard | GET /api/analytics/hotspot-dashboard | State view, district drill-down, trend |
+| 15 | Crime category | GET /api/analytics/crime-category/Theft | Demo, geo, temporal, behavioral, financial dims |
+| 16 | Workspace | GET /api/workspace/overview | Role-scoped KPIs, my_cases, stream |
+| 17 | Command center | GET /api/command/overview (as DGP) | All fields: KPIs, ai_insights, ai_recommendations, neighbor_intel, district_ranking, forecast_analysis |
+
+#### Chat & NLQ
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 18 | Global chat | POST /api/chat/message "How many theft cases?" | GLM answer with evidence, reasoning, grounding |
+| 19 | Case chat | POST /api/investigation/{id}/chat "Summarize this case" | Case-scoped conversation with case_id set |
+| 20 | Chat with file | POST /api/chat/message + PDF upload | Entity extraction + answer |
+
+#### Investigation Workflow
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 21 | Add note | POST /api/investigation/{id}/notes | Note created, timeline event logged |
+| 22 | Pin note | POST /api/investigation/notes/{id}/pin | Pinned toggled |
+| 23 | Add witness | POST /api/investigation/{id}/witnesses + doc | Witness + document uploaded to File Store |
+| 24 | Upload evidence | POST /api/investigation/{id}/evidence + file | File in File Store, ai_summary populated by GLM |
+| 25 | Stage request | POST /api/investigation/{id}/stage/request | Approval record created |
+| 26 | Approve stage | POST /api/investigation/approval/{id}/review (as PI) | Stage approved, investigation updated |
+
+#### Forecasting, Financial, Audit
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 27 | Forecasting | GET /api/forecasting/predictions | Prophet-generated predictions with confidence |
+| 28 | Money trail | GET /api/financial/graph | Account nodes + transaction edges |
+| 29 | Audit trail | GET /api/audit/summary (as PI) | Territory-scoped audit data |
+
+#### RBAC & Territory
+
+| # | Test | Action | Expected |
+|---|------|--------|----------|
+| 30 | Audit blocked | GET /api/audit/summary (as constable) | 403 Forbidden |
+| 31 | Territory scope | GET /api/cases (as SP of Mysuru) | Only Mysuru district cases |
+| 32 | Emergency access | POST /api/investigation/{id}/emergency-access (as DSP) | Access granted |
+| 33 | Emergency denied | POST /api/investigation/{id}/emergency-access (as SI) | 403 — role too low |
 
 ---
 
@@ -1049,28 +1153,35 @@ const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8077/api";
 | `app/export_training_data.py` | CSV export for Prophet training | 6 |
 | `app/migrate_to_catalyst.py` | One-time SQLite → Datastore migration | 8 |
 
-### Modified Files (18)
+### Modified Files (19)
 
 | File | Change | Phase |
 |------|--------|-------|
-| `app/config.py` | Add Catalyst config fields | 2 |
+| `app/config.py` | Add Catalyst config fields (project_id, folder IDs, GLM model ID, QuickML model ID) | 2 |
 | `app/database.py` | Replace SQLAlchemy with CatalystStore dependency | 2 |
-| `app/main.py` | Add create_app() factory, remove uvicorn block | 3 |
+| `app/main.py` | Add create_app() factory, remove uvicorn block, keep audit middleware | 3 |
 | `app/llm/client.py` | Implement CatalystClient with GLM 4.7 | 4 |
 | `app/services/nlq.py` | Rewrite for GLM-powered NLQ | 4 |
 | `app/routers/auth.py` | SQLAlchemy → ZCQL | 5 |
-| `app/routers/cases.py` | SQLAlchemy → ZCQL (heavy) | 5 |
-| `app/routers/analytics.py` | SQLAlchemy → ZCQL (heaviest) | 5 |
+| `app/routers/cases.py` | SQLAlchemy → ZCQL + preserve `_infer_sections()` BNS map | 5 |
+| `app/routers/analytics.py` | SQLAlchemy → ZCQL (heaviest — 11 endpoints) | 5 |
 | `app/routers/network.py` | SQLAlchemy → ZCQL | 5 |
 | `app/routers/profiling.py` | SQLAlchemy → ZCQL | 5 |
 | `app/routers/socio.py` | SQLAlchemy → ZCQL | 5 |
 | `app/routers/forecasting.py` | Replace with QuickML calls | 5, 6 |
 | `app/routers/financial.py` | SQLAlchemy → ZCQL | 5 |
 | `app/routers/alerts.py` | SQLAlchemy → ZCQL | 5 |
-| `app/routers/dashboards.py` | SQLAlchemy → ZCQL (heaviest) | 5 |
-| `app/routers/investigation.py` | SQLAlchemy → ZCQL + File Store | 5, 7 |
+| `app/routers/dashboards.py` | SQLAlchemy → ZCQL + preserve AI insight/recommendation engines | 5 |
+| `app/routers/investigation.py` | SQLAlchemy → ZCQL + File Store + GLM evidence summary | 5, 7 |
+| `app/routers/chat.py` | SQLAlchemy → ZCQL + File Store for uploads | 5, 7 |
 | `app/routers/victims.py` | SQLAlchemy → ZCQL | 5 |
 | `app/routers/audit.py` | SQLAlchemy → ZCQL | 5 |
+
+### Frontend Fix (1 file)
+
+| File | Change | Phase |
+|------|--------|-------|
+| `frontend/src/api.ts` | Fix `reviewAccessRequest()`: change `fd.append("status", status)` → `fd.append("action", status)`. Also update `BASE` URL for Catalyst. | Pre-migration, 9 |
 
 ### Unchanged Files
 
@@ -1091,6 +1202,39 @@ const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8077/api";
 | `app/models.py` | SQLAlchemy models replaced by Datastore tables |
 | `app/seed.py` | Replaced by migrate_to_catalyst.py |
 | `crimeintel.db` | SQLite database replaced by Catalyst Datastore |
+
+---
+
+## Pre-Migration Bug Fixes
+
+These issues exist in the current codebase and should be fixed before or during the Catalyst migration:
+
+| # | Bug | File | Fix |
+|---|-----|------|-----|
+| B1 | **`reviewAccessRequest` sends wrong field name** — frontend sends `"status"` but backend expects `"action"`; causes 422 on access request reviews | `frontend/src/api.ts:241` / `investigation.py:532` | Change `fd.append("status", status)` → `fd.append("action", status)` |
+| B2 | **`conversations.user_id` never populated** — global and case chats create conversations without setting user_id | `chat.py:75`, `investigation.py:619` | Set `user_id` from `ctx.user_id` on conversation creation |
+| B3 | **`audit_logs.prev_value` / `new_value` never populated** — columns exist but audit middleware only logs action, not change data | `main.py` audit middleware | For update/delete actions, capture before-state and include in audit log |
+| B4 | **`MyAccess.tsx` missing screens** — ALL_SCREENS constant doesn't include `work` and `victims`, so the displayed access matrix is incomplete | `frontend/src/pages/MyAccess.tsx:12` | Add `"work"` and `"victims"` to ALL_SCREENS |
+| B5 | **No witness update/delete endpoints** — witnesses can be added but never edited or removed | `investigation.py` | Add `PUT /investigation/{case_id}/witnesses/{id}` and `DELETE /investigation/witnesses/{id}` |
+| B6 | **Case update missing fields** — `occurrence_date`, `latitude`, `longitude`, `is_financial` can't be updated after FIR creation | `cases.py:160` | Add these fields to the updatable set |
+
+---
+
+## Computed Features Preserved During Migration
+
+These features are NOT stored in any table — they are computed in Python from queries across multiple tables. The computation logic in the following functions must be preserved exactly during the router migration (Phase 5):
+
+| Function | File | Produces | Tables Queried |
+|----------|------|----------|----------------|
+| `_ai_recommendations()` | `dashboards.py:113-285` | Up to 10 action items (action, priority, impact, risk_score, confidence, category) | cases, predictions, accused, behavior_profiles, associations |
+| `_ai_insights()` | `dashboards.py:288-411` | Up to 8 intelligence insights (title, detail, severity, category) | cases, accused, behavior_profiles, investigations, transactions |
+| `_forecast_analysis()` | `dashboards.py:652-714` | Crime trend comparison + risk summary | cases, predictions |
+| `_infer_sections()` | `cases.py:239+` | BNS/IPC applicable sections for chargesheet | Hardcoded map (17 crime types → legal sections) |
+| `_mock_summary()` | `investigation.py:354` | Evidence AI summary | Replace with GLM 4.7 call |
+| Intelligence stream | `dashboards.py:86,767` | Recent timeline events with case cross-reference | timeline_events, cases |
+| Victim intelligence | `victims.py:100-153` | Case history + AI text summary | victims, case_victim, cases, case_accused, accused |
+| Victim relationships | `victims.py:170-270` | Graph nodes + edges | 5+ tables |
+| Vulnerability assessment | `victims.py:73-97` | Top 20 most-victimized with risk factors | victims, case_victim |
 
 ---
 
