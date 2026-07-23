@@ -87,18 +87,32 @@ def seed(n_cases=260, n_accused=180, n_victims=200):
     reset_db()
     db = SessionLocal()
 
-    # ── Users (RBAC demo accounts — Karnataka Police hierarchy) ──
+    # ── Users (RBAC demo accounts — full Karnataka State Police hierarchy) ──
     demo_users = [
-        ("constable", "PC Ravi Gowda", "constable", "KA-PC-3391", "Bengaluru City"),
-        ("si", "SI Anitha Rao", "sub_inspector", "KA-SI-1187", "Bengaluru City"),
-        ("sho", "Insp. M. Shetty", "sho", "KA-SHO-0442", "Bengaluru City"),
-        ("dsp", "Dy.SP N. Prakash", "dsp", "KA-DSP-0071", "Bengaluru City"),
-        ("commander", "Cmdr. S. Iyer", "commander", "KA-CMD-0009", "State HQ"),
-        ("analyst", "Analyst A. Sharma", "analyst", "KA-ANL-2205", "Bengaluru City"),
+        # (username, full_name, role, badge, district, subdivision, station, range_name)
+        ("dgp", "DGP K. Rajendra Kumar, IPS", "dgp", "KA-DGP-0001", "State HQ", None, "State HQ", None),
+        ("addl_dgp", "Addl. DGP S. Murugan, IPS", "addl_dgp", "KA-ADGP-0003", "State HQ", None, "State HQ", None),
+        ("ig", "IGP R. Hitendra, IPS", "ig", "KA-IGP-0012", "Bengaluru City", None, "Range HQ", "Bengaluru"),
+        ("dig", "DIG V. Sharanappa, IPS", "dig", "KA-DIG-0018", "Mysuru", None, "Range HQ", "Mysuru"),
+        ("sp", "SP D. Roopa, IPS", "sp", "KA-SP-0034", "Bengaluru City", None, "District HQ", "Bengaluru"),
+        ("sp_mysuru", "SP H. Lakshmipathi", "sp", "KA-SP-0041", "Mysuru", None, "District HQ", "Mysuru"),
+        ("dsp", "Dy.SP N. Prakash", "dsp", "KA-DSP-0071", "Bengaluru City", "Bengaluru East", "Subdivision HQ", "Bengaluru"),
+        ("acp", "ACP M. Chandra", "acp", "KA-ACP-0089", "Bengaluru City", "Bengaluru West", "Subdivision HQ", "Bengaluru"),
+        ("ci", "CI R. Gowda", "ci", "KA-CI-0125", "Bengaluru City", "Bengaluru South", "Bengaluru South PS", "Bengaluru"),
+        ("sho", "Insp. M. Shetty", "sho", "KA-SHO-0442", "Bengaluru City", "Bengaluru East", "Central PS", "Bengaluru"),
+        ("pi", "PI A. Kumar", "pi", "KA-PI-0567", "Bengaluru City", "Bengaluru East", "East PS", "Bengaluru"),
+        ("si", "SI Anitha Rao", "sub_inspector", "KA-SI-1187", "Bengaluru City", "Bengaluru East", "Central PS", "Bengaluru"),
+        ("asi", "ASI K. Venkatesh", "asi", "KA-ASI-2001", "Bengaluru City", "Bengaluru East", "Central PS", "Bengaluru"),
+        ("hc", "HC Raju Nayak", "head_constable", "KA-HC-2891", "Bengaluru City", "Bengaluru East", "Central PS", "Bengaluru"),
+        ("constable", "PC Ravi Gowda", "constable", "KA-PC-3391", "Bengaluru City", "Bengaluru East", "Central PS", "Bengaluru"),
+        ("analyst", "Analyst A. Sharma", "analyst", "KA-ANL-2205", "Bengaluru City", None, "District HQ", "Bengaluru"),
+        # Keep the old commander as DGP alias for backward compat
+        ("commander", "Cmdr. S. Iyer", "dgp", "KA-CMD-0009", "State HQ", None, "State HQ", None),
     ]
-    for uname, name, role, badge, dist in demo_users:
+    for uname, name, role, badge, dist, subdiv, stn, rng in demo_users:
         db.add(m.User(username=uname, full_name=name, email=f"{uname}@ksp.gov.in",
-                      password="password", role=role, badge_number=badge, district=dist))
+                      password="password", role=role, badge_number=badge, district=dist,
+                      subdivision=subdiv, station=stn, range_name=rng))
 
     # ── Officers ──
     officers = []

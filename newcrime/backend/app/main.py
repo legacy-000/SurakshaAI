@@ -5,18 +5,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, engine, SessionLocal
+from .database import Base, engine, SessionLocal, migrate
 from . import models  # noqa: F401  (register tables)
 from .llm import get_llm
 from .routers import (
     auth, cases, chat, analytics, network, profiling, socio, forecasting,
-    financial, alerts, audit, dashboards, investigation,
+    financial, alerts, audit, dashboards, investigation, victims,
 )
 from .deps import get_ctx
 
 
 def _ensure_seeded():
     Base.metadata.create_all(bind=engine)
+    migrate(engine)
     db = SessionLocal()
     try:
         empty = db.query(models.Case).first() is None
@@ -46,7 +47,7 @@ app.add_middleware(
 )
 
 for r in (auth, chat, cases, analytics, network, profiling, socio, forecasting,
-          financial, alerts, audit, dashboards, investigation):
+          financial, alerts, audit, dashboards, investigation, victims):
     app.include_router(r.router)
 
 
@@ -61,6 +62,23 @@ _RESOURCE_MAP = {
 _PII_RESOURCES = {"cases", "profiling", "chat", "financial", "investigation"}
 
 
+_METHOD_ACTION = {"GET": "view", "POST": "create", "PUT": "update", "PATCH": "update", "DELETE": "delete"}
+
+
+def _classify_action(method: str, path: str) -> str:
+    if "/login" in path:
+        return "login"
+    if "/evidence" in path and method == "POST":
+        return "upload"
+    if "/approval" in path or "/review" in path:
+        return "approve" if method == "POST" else "view"
+    if "/stage/request" in path:
+        return "approve"
+    if "/briefing" in path or "/chargesheet" in path:
+        return "export" if method == "POST" else "view"
+    return _METHOD_ACTION.get(method, "view")
+
+
 @app.middleware("http")
 async def audit_mw(request, call_next):
     response = await call_next(request)
@@ -73,13 +91,31 @@ async def audit_mw(request, call_next):
         seg = path.split("/")
         key = seg[2] if len(seg) > 2 else ""
         pii = key in _PII_RESOURCES and ctx.can_view_pii and request.method == "GET"
+
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if not ip:
+            ip = request.client.host if request.client else "unknown"
+        ua = request.headers.get("user-agent", "")[:255]
+        sid = request.headers.get("x-session-id", "")
+
+        action_type = _classify_action(request.method, path)
+
+        resource_name = _RESOURCE_MAP.get(key, key or "root")
+        detail_parts = [f"{request.method} {path}"]
+        if response.status_code >= 400:
+            detail_parts.append(f"status={response.status_code}")
+        detail = " | ".join(detail_parts)
+
         db = SessionLocal()
         try:
             db.add(models.AuditLog(
                 user_id=ctx.user_id, user_name=ctx.name, role=ctx.role,
                 action=request.method, path=path,
-                resource=_RESOURCE_MAP.get(key, key or "root"),
-                status_code=response.status_code, pii_accessed=pii))
+                resource=resource_name,
+                status_code=response.status_code, pii_accessed=pii,
+                action_type=action_type, detail=detail,
+                ip_address=ip, user_agent=ua, session_id=sid,
+                district=ctx.district))
             db.commit()
         finally:
             db.close()

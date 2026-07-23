@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Send, Mic, MicOff, Volume2, FileDown, Plus, Trash2, Code2, Database,
   Sparkles, ChevronDown, ChevronRight, ShieldCheck, GitBranch, ArrowRight,
+  Paperclip, X,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { api } from "../api";
@@ -49,8 +50,11 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const [lang, setLang] = useState<"auto" | "en" | "kn">("auto");
   const [listening, setListening] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recogRef = useRef<any>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const ACCEPT = ".pdf,.docx,.txt,.csv,.xlsx,.xls";
 
   useEffect(() => { loadConvs(); }, []);
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight); }, [msgs, busy]);
@@ -80,13 +84,17 @@ export default function Chat() {
 
   const send = async (text?: string) => {
     let message = (text ?? input).trim();
-    if (!message || busy) return;
+    if (!message && files.length === 0) return;
+    if (busy) return;
     if (knTyping && !text) message = toKannada(message);
+    const pendingFiles = [...files];
     setInput("");
-    setMsgs((m) => [...m, { role: "user", content: message, language: lang }]);
+    setFiles([]);
+    const displayMsg = message || `[Uploaded: ${pendingFiles.map(f => f.name).join(", ")}]`;
+    setMsgs((m) => [...m, { role: "user", content: displayMsg, language: lang }]);
     setBusy(true);
     try {
-      const r = await api.sendMessage(message, convId, lang);
+      const r = await api.sendMessage(message, convId, lang, pendingFiles.length > 0 ? pendingFiles : undefined);
       if (!convId) { setConvId(r.conversation_id); loadConvs(); }
       const am: Msg = {
         role: "assistant", content: r.answer, sql: r.sql, intent: r.intent,
@@ -216,16 +224,31 @@ export default function Chat() {
               <span style={{ color: "var(--accent)", fontSize: 15 }}>{preview || "ನಮಸ್ಕಾರ"}</span>
             </div>
           )}
+          {files.length > 0 && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+              {files.map((f, i) => (
+                <span key={i} className="chip accent" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <Paperclip size={11} /> {f.name}
+                  <X size={12} style={{ cursor: "pointer" }} onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} />
+                </span>
+              ))}
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden
+            onChange={(e) => { if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files!)]); e.target.value = ""; }} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="icon-btn" onClick={toggleMic}
               title={t("Voice input")} style={listening ? { borderColor: "var(--red)", color: "var(--red)" } : {}}>
               {listening ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
+            <button className="icon-btn" onClick={() => fileRef.current?.click()} title={t("Attach file")}>
+              <Paperclip size={16} />
+            </button>
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder={listening ? t("Listening…") : knTyping ? "namaskara, eshtu prakaranagalu…" : t("Ask a question…")}
               style={{ flex: 1 }} />
-            <button className="btn primary" onClick={() => send()} disabled={busy || !input.trim()}>
+            <button className="btn primary" onClick={() => send()} disabled={busy || (!input.trim() && files.length === 0)}>
               <Send size={15} />
             </button>
           </div>

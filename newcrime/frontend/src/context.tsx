@@ -49,6 +49,9 @@ export interface User {
   rank: string;
   badge_number: string;
   district: string;
+  subdivision?: string;
+  range_name?: string;
+  station?: string;
   permissions: {
     screens: string[];
     can_view_pii: boolean;
@@ -57,6 +60,7 @@ export interface User {
     can_view_audit: boolean;
     can_investigate: boolean;
     scope: string;
+    command_level?: string | null;
   };
 }
 

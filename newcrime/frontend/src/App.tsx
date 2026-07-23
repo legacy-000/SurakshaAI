@@ -2,8 +2,8 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, MessageSquare, FolderSearch, Share2, UserSearch, Users2,
-  TrendingUp, Landmark, Bell, Network, Sun, Moon, LogOut, Shield,
-  KeyRound, ScrollText, Command, HelpCircle, Briefcase,
+  TrendingUp, Landmark, Bell, Network, Sun, Moon, LogOut, Shield, BarChart3,
+  KeyRound, ScrollText, Command, HelpCircle, Briefcase, HeartPulse, ClipboardCheck, Menu,
 } from "lucide-react";
 import { useAuth, useTheme, useLang } from "./context";
 import { Tour, TOUR_STEPS } from "./Tour";
@@ -25,6 +25,10 @@ import Patterns from "./pages/Patterns";
 import Alerts from "./pages/Alerts";
 import MyAccess from "./pages/MyAccess";
 import Audit from "./pages/Audit";
+import VictimAnalysis from "./pages/VictimAnalysis";
+import HotspotDashboard from "./pages/HotspotDashboard";
+import CrimeCategoryAnalytics from "./pages/CrimeCategoryAnalytics";
+import ApprovalConsole from "./pages/ApprovalConsole";
 
 interface NavDef { to: string; label: string; icon: any; screen: string; section?: string; }
 const NAV: NavDef[] = [
@@ -36,11 +40,15 @@ const NAV: NavDef[] = [
   { to: "/network", label: "Criminal Network", icon: Share2, screen: "network" },
   { to: "/profiling", label: "Offender Profiling", icon: UserSearch, screen: "profiling" },
   { to: "/financial", label: "Financial Crime", icon: Landmark, screen: "financial" },
-  { to: "/analytics", label: "Patterns & Trends", icon: Network, screen: "patterns", section: "Analyse" },
+  { to: "/victim-analysis", label: "Victim Analysis", icon: HeartPulse, screen: "victims" },
+  { to: "/hotspots", label: "Crime Hotspots", icon: TrendingUp, screen: "patterns", section: "Analyse" },
+  { to: "/crime-analytics", label: "Crime Category Analytics", icon: BarChart3, screen: "patterns" },
+  { to: "/analytics", label: "Patterns & Trends", icon: Network, screen: "patterns" },
   { to: "/socio", label: "Socio Insights", icon: Users2, screen: "socio" },
   { to: "/forecasting", label: "Forecasting", icon: TrendingUp, screen: "forecasting" },
   { to: "/alerts", label: "Alerts", icon: Bell, screen: "alerts", section: "Monitor" },
   { to: "/access", label: "My Access", icon: KeyRound, screen: "access", section: "Governance" },
+  { to: "/approvals", label: "Approval Console", icon: ClipboardCheck, screen: "approvals" },
   { to: "/audit", label: "Audit Trail", icon: ScrollText, screen: "audit" },
 ];
 
@@ -51,7 +59,11 @@ const TITLES: Record<string, string> = {
   "/profiling": "Criminology Offender Profiling", "/financial": "Financial Crime & Money Trail",
   "/analytics": "Crime Patterns & Trend Analytics", "/socio": "Sociological Crime Insights",
   "/forecasting": "Crime Forecasting & Early Warning", "/alerts": "Alerts & Early Warning Feed",
-  "/access": "My Access & Permissions", "/audit": "Audit Trail & Accountability",
+  "/victim-analysis": "Victim Analysis & Vulnerability",
+  "/hotspots": "Crime Hotspot Dashboard",
+  "/crime-analytics": "Crime Category Analytics",
+  "/access": "My Access & Permissions", "/approvals": "Approval Console",
+  "/audit": "Audit Trail & Accountability",
 };
 
 export default function App() {
@@ -61,6 +73,7 @@ export default function App() {
   const nav = useNavigate();
   const loc = useLocation();
   const [tourRun, setTourRun] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
 
   useEffect(() => {
     if (user && !localStorage.getItem("ci-tour-done")) {
@@ -69,6 +82,8 @@ export default function App() {
     }
   }, [user]);
 
+  useEffect(() => { setMobileNav(false); }, [loc.pathname]);
+
   if (!user) return <Login />;
 
   const startTour = () => { nav("/"); setTimeout(() => setTourRun(true), 150); };
@@ -76,7 +91,7 @@ export default function App() {
 
   const allowed = new Set(user.permissions.screens);
   allowed.add("access"); // My Access is available to every role
-  const canCommand = ["sho", "dsp", "commander"].includes(user.role);
+  const canCommand = ["sho", "pi", "ci", "acp", "dsp", "sp", "dig", "ig", "addl_dgp", "dgp", "commander"].includes(user.role);
   if (canCommand) allowed.add("command");
   const items = NAV.filter((n) => allowed.has(n.screen));
   const tourSteps = TOUR_STEPS.filter((s) => s.selector !== "nav-command" || canCommand);
@@ -87,7 +102,8 @@ export default function App() {
   return (
     <div className="app-shell">
       <Tour steps={tourSteps} run={tourRun} onClose={endTour} />
-      <aside className="sidebar" data-tour="sidebar">
+      <div className={`mobile-overlay ${mobileNav ? "show" : ""}`} onClick={() => setMobileNav(false)} />
+      <aside className={`sidebar ${mobileNav ? "mobile-open" : ""}`} data-tour="sidebar">
         <div className="brand">
           <div className="logo">CI</div>
           <div>
@@ -101,7 +117,7 @@ export default function App() {
               {n.section && <div className="nav-section">{t(n.section)}</div>}
               <button
                 className={`nav-item ${loc.pathname === n.to ? "active" : ""}`}
-                data-tour={n.screen === "chat" ? "nav-chat" : n.screen === "command" ? "nav-command" : undefined}
+                data-tour={n.screen === "chat" ? "nav-chat" : n.screen === "command" ? "nav-command" : n.screen === "cases" ? "nav-cases" : n.screen === "work" ? "nav-work" : undefined}
                 onClick={() => nav(n.to)}>
                 <n.icon size={17} />
                 {t(n.label)}
@@ -122,9 +138,14 @@ export default function App() {
 
       <main className="main">
         <header className="topbar">
-          <div>
-            <h2>{t(title)}</h2>
-            <div className="crumb">{user.badge_number} · {user.district}</div>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <button className="mobile-menu-btn" onClick={() => setMobileNav(true)}>
+              <Menu size={18} />
+            </button>
+            <div>
+              <h2>{t(title)}</h2>
+              <div className="crumb">{user.badge_number} · {user.district}</div>
+            </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }} data-tour="topbar-tools">
             <select value={lang} onChange={(e) => setLang(e.target.value as any)}
@@ -156,11 +177,15 @@ export default function App() {
             <Route path="/profiling" element={<Guard ok={allowed.has("profiling")}><Profiling /></Guard>} />
             <Route path="/offender/:id" element={<Guard ok={allowed.has("profiling")}><OffenderDetail /></Guard>} />
             <Route path="/financial" element={<Guard ok={allowed.has("financial")}><Financial /></Guard>} />
+            <Route path="/hotspots" element={<Guard ok={allowed.has("patterns")}><HotspotDashboard /></Guard>} />
+            <Route path="/crime-analytics" element={<Guard ok={allowed.has("patterns")}><CrimeCategoryAnalytics /></Guard>} />
             <Route path="/analytics" element={<Guard ok={allowed.has("patterns")}><Patterns /></Guard>} />
             <Route path="/socio" element={<Guard ok={allowed.has("socio")}><Socio /></Guard>} />
             <Route path="/forecasting" element={<Guard ok={allowed.has("forecasting")}><Forecasting /></Guard>} />
             <Route path="/alerts" element={<Guard ok={allowed.has("alerts")}><Alerts /></Guard>} />
+            <Route path="/victim-analysis" element={<Guard ok={allowed.has("victims")}><VictimAnalysis /></Guard>} />
             <Route path="/access" element={<MyAccess />} />
+            <Route path="/approvals" element={<Guard ok={allowed.has("approvals")}><ApprovalConsole /></Guard>} />
             <Route path="/audit" element={<Guard ok={allowed.has("audit")}><Audit /></Guard>} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

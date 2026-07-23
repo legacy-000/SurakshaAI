@@ -181,6 +181,10 @@ tbody tr:hover { background: var(--panel-2); }
   border-top-color: var(--accent); animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
 
 .mono { font-family: "Consolas", "SF Mono", monospace; }
 .dim { color: var(--text-dim); }
@@ -193,3 +197,55 @@ tbody tr:hover { background: var(--panel-2); }
 
 /* section grid background for graph */
 .graph-bg { background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 28px 28px; }
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .app-shell { grid-template-columns: 200px 1fr; }
+  .content { padding: 14px; }
+  .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0; width: 260px;
+    z-index: 200; box-shadow: var(--shadow);
+    display: none;
+  }
+  .sidebar.mobile-open { display: flex; }
+  .mobile-overlay {
+    position: fixed; inset: 0; z-index: 199;
+    background: rgba(0,0,0,0.5); display: none;
+  }
+  .mobile-overlay.show { display: block; }
+  .mobile-menu-btn {
+    display: flex !important; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; margin-right: 8px;
+  }
+  .topbar { padding: 0 12px; }
+  .topbar h2 { font-size: 13px; }
+  .content { padding: 10px; }
+  .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+  table { font-size: 12px; }
+  table th, table td { padding: 6px 8px; }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-btn { display: none !important; }
+  .mobile-overlay { display: none !important; }
+}
+
+/* ── Accessibility ───────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }

@@ -37,10 +37,14 @@ def _user_payload(user: m.User):
     return {"id": user.id, "username": user.username, "full_name": user.full_name,
             "role": user.role, "rank": caps["rank"], "badge_number": user.badge_number,
             "district": user.district,
+            "subdivision": getattr(user, 'subdivision', None) or "",
+            "range_name": getattr(user, 'range_name', None) or "",
+            "station": getattr(user, 'station', None) or "",
             "permissions": {"screens": caps["screens"],
                             "can_view_pii": caps["can_view_pii"],
                             "can_view_sql": caps["can_view_sql"],
                             "can_export": caps["can_export"],
                             "can_view_audit": caps["can_view_audit"],
                             "can_investigate": caps.get("can_investigate", False),
-                            "scope": caps["scope"]}}
+                            "scope": caps["scope"],
+                            "command_level": caps.get("command_level")}}

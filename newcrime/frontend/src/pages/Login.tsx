@@ -7,7 +7,7 @@ export default function Login() {
   const { login } = useAuth();
   const { theme, toggle } = useTheme();
   const [users, setUsers] = useState<any[]>([]);
-  const [username, setUsername] = useState("dsp");
+  const [username, setUsername] = useState("dgp");
   const [password, setPassword] = useState("password");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -72,13 +72,15 @@ export default function Login() {
           </button>
 
           <div className="nav-section" style={{ padding: "16px 0 6px" }}>DEMO ACCOUNTS (click to fill)</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 320, overflowY: "auto" }}>
             {users.map((u) => (
               <button type="button" key={u.username} className="btn ghost"
                 onClick={() => { setUsername(u.username); setPassword("password"); }}
-                style={{ justifyContent: "space-between", fontSize: 12 }}>
-                <span>{u.full_name}</span>
-                <span className="faint">{u.rank || u.role}</span>
+                style={{ justifyContent: "space-between", fontSize: 11, padding: "6px 10px",
+                  background: username === u.username ? "rgba(0,209,255,0.08)" : undefined,
+                  borderColor: username === u.username ? "var(--accent)" : undefined }}>
+                <span style={{ fontWeight: username === u.username ? 600 : 400 }}>{u.full_name}</span>
+                <span className="faint" style={{ fontSize: 10 }}>{u.rank || u.role}</span>
               </button>
             ))}
           </div>

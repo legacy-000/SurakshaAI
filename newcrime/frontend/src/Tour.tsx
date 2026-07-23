@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { X, ArrowRight, ArrowLeft } from "lucide-react";
+import { useLang } from "./context";
 
 export interface TourStep {
   selector: string;   // [data-tour="..."]
@@ -9,6 +10,7 @@ export interface TourStep {
 
 export function Tour({ steps, run, onClose }:
   { steps: TourStep[]; run: boolean; onClose: () => void }) {
+  const { t } = useLang();
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
@@ -24,9 +26,9 @@ export function Tour({ steps, run, onClose }:
       } else setRect(null);
     };
     measure();
-    const t = setTimeout(measure, 260);
+    const tm = setTimeout(measure, 260);
     window.addEventListener("resize", measure);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+    return () => { clearTimeout(tm); window.removeEventListener("resize", measure); };
   }, [i, run, steps]);
 
   if (!run || !steps.length) return null;
@@ -66,19 +68,19 @@ export function Tour({ steps, run, onClose }:
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <span className="faint" style={{ fontSize: 11, letterSpacing: 1 }}>
-            STEP {i + 1} / {steps.length}
+            {t("STEP")} {i + 1} / {steps.length}
           </span>
           <X size={16} style={{ cursor: "pointer" }} className="faint" onClick={onClose} />
         </div>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{step.title}</div>
-        <div className="dim" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 14 }}>{step.body}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{t(step.title)}</div>
+        <div className="dim" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 14 }}>{t(step.body)}</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button className="btn ghost" onClick={onClose} style={{ fontSize: 12 }}>Skip tour</button>
+          <button className="btn ghost" onClick={onClose} style={{ fontSize: 12 }}>{t("Skip tour")}</button>
           <div style={{ display: "flex", gap: 8 }}>
-            {i > 0 && <button className="btn" onClick={() => setI(i - 1)}><ArrowLeft size={14} /> Back</button>}
+            {i > 0 && <button className="btn" onClick={() => setI(i - 1)}><ArrowLeft size={14} /> {t("Back")}</button>}
             {i < steps.length - 1
-              ? <button className="btn primary" onClick={() => setI(i + 1)}>Next <ArrowRight size={14} /></button>
-              : <button className="btn primary" onClick={onClose}>Finish</button>}
+              ? <button className="btn primary" onClick={() => setI(i + 1)}>{t("Next")} <ArrowRight size={14} /></button>
+              : <button className="btn primary" onClick={onClose}>{t("Finish")}</button>}
           </div>
         </div>
       </div>
@@ -95,6 +97,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Ask about FIRs, offenders, networks, money trails or forecasts in plain English or Kannada. Every answer is grounded with an evidence trail and reasoning path." },
   { selector: "nav-command", title: "Command Center",
     body: "Senior officers get a strategic view: a live Karnataka hotspot map, intelligence stream, priority alerts and the offender pool." },
+  { selector: "nav-cases", title: "Cases / FIR Explorer",
+    body: "Browse all cases, filter by crime type, district, or status." },
+  { selector: "nav-work", title: "Work a Case",
+    body: "Click 'Start Investigation' to open the investigation dashboard." },
+  { selector: "nav-evidence", title: "Evidence Tab",
+    body: "Upload and manage case evidence with AI-generated summaries." },
+  { selector: "nav-ai-assistant", title: "Case AI Assistant",
+    body: "Ask questions about cases, suspects, and crime patterns." },
   { selector: "topbar-tools", title: "Theme, tour & sign-out",
     body: "Toggle dark/light, replay this tour anytime with the ? button, and sign out. That's it — start exploring!" },
 ];

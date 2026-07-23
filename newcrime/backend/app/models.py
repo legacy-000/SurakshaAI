@@ -32,6 +32,9 @@ class User(Base):
     role = Column(String(30), default="investigator", index=True)
     badge_number = Column(String(30))
     district = Column(String(60))
+    subdivision = Column(String(100))
+    station = Column(String(100))
+    range_name = Column(String(60))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_now)
 
@@ -269,6 +272,7 @@ class Conversation(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String(200))
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=True, index=True)
     language = Column(String(5), default="en")   # en | kn
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
@@ -303,6 +307,7 @@ class EvidenceDocument(Base):
     size = Column(Integer, default=0)
     uploaded_by = Column(String(100))
     ai_summary = Column(Text)           # AI-generated summary (mock)
+    remarks = Column(Text)
     created_at = Column(DateTime, default=_now)
 
 
@@ -315,6 +320,8 @@ class Witness(Base):
     contact = Column(String(30))
     statement = Column(Text)
     reliability = Column(String(20), default="Medium")   # Low | Medium | High
+    document_path = Column(String(255))
+    document_name = Column(String(255))
     created_at = Column(DateTime, default=_now)
 
 
@@ -329,6 +336,14 @@ class AuditLog(Base):
     resource = Column(String(80))      # human-readable module
     status_code = Column(Integer)
     pii_accessed = Column(Boolean, default=False)
+    action_type = Column(String(50))   # view, create, update, delete, export, login, upload, approve, reject
+    detail = Column(Text)              # human-readable description
+    ip_address = Column(String(45))
+    user_agent = Column(String(255))
+    session_id = Column(String(100))
+    district = Column(String(60))
+    prev_value = Column(Text)
+    new_value = Column(Text)
     created_at = Column(DateTime, default=_now, index=True)
 
 
@@ -347,3 +362,32 @@ class Message(Base):
     created_at = Column(DateTime, default=_now)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+
+# ── Stage approvals / access requests (investigation workflow) ────────
+class StageApproval(Base):
+    """Tracks who approved/rejected stage changes."""
+    __tablename__ = "stage_approvals"
+    id = Column(Integer, primary_key=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    stage = Column(String(50), nullable=False)
+    action = Column(String(20))  # approved | rejected | requested
+    requested_by = Column(String(100))
+    requested_role = Column(String(30))
+    approved_by = Column(String(100))
+    approved_role = Column(String(30))
+    comments = Column(Text)
+    created_at = Column(DateTime, default=_now)
+
+
+class AccessRequest(Base):
+    """Tracks role access requests."""
+    __tablename__ = "access_requests"
+    id = Column(Integer, primary_key=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    requested_by = Column(String(100))
+    requested_role = Column(String(30))
+    reason = Column(Text)
+    status = Column(String(20), default="pending")  # pending | approved | rejected
+    reviewed_by = Column(String(100))
+    created_at = Column(DateTime, default=_now)
