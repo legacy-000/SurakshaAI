@@ -1,7 +1,0 @@
-SessionID,UserID,Message,Response,Timestamp
-SESS001,USER001,Show theft cases in MG Road,Found 12 theft cases registered in MG Road area.,2026-07-01 10:30:00
-SESS001,USER001,Which areas have highest crime?,"MG Road (15 cases), Koramangala (12 cases), Indiranagar (10 cases).",2026-07-01 10:31:00
-SESS001,USER001,Show monthly trend,Jan:3 Feb:5 Mar:7 Apr:9 May:12 Jun:14 — rising trend.,2026-07-01 10:32:00
-SESS002,USER002,Whose accused name is John Doe?,John Doe is accused in Case #1. Repeat offender.,2026-07-02 14:00:00
-SESS002,USER002,Map of all burglary cases,"Found 6 burglary cases in Indiranagar, Whitefield, Jayanagar.",2026-07-02 14:01:00
-SESS004,USER004,Similar cases to Case 2,3 similar assault cases found in Koramangala area.,2026-07-04 11:01:00

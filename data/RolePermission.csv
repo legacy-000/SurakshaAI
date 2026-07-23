@@ -1,6 +1,0 @@
-role_id,role_name,permitted_apis,permitted_screens,permitted_tables,can_view_sql,can_view_audit,can_export_pdf,can_view_pii,can_manage_users
-1,Investigator,"[""/chat/*"",""/analytics/*"",""/offender/*"",""/network/*""]","[""chat"",""analytics"",""offender"",""network"",""workspace""]","[""CaseMaster"",""Accused"",""Victim"",""ComplainantDetails""]",1,0,1,0,0
-2,Analyst,"[""/chat/*"",""/analytics/*"",""/forecast/*""]","[""chat"",""analytics"",""forecast"",""sociological""]","[""CaseMaster"",""Accused"",""Victim""]",1,0,1,0,0
-3,Supervisor,"[""/*""]","[""*""]","[""*""]",1,1,1,0,0
-4,Policymaker,"[""/analytics/*"",""/forecast/*""]","[""analytics"",""forecast"",""sociological""]","[""CaseMaster""]",1,0,1,0,0
-5,System Administrator,"[""/*""]","[""*""]","[""*""]",1,1,1,1,1
