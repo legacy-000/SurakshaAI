@@ -1,1 +1,0 @@
-{"deployment":{"name":"analytics_cron","stack":"python_3_11","type":"job"},"execution":{"main":"main.py"}}

@@ -1,0 +1,9 @@
+fastapi==0.115.12
+pydantic==2.11.7
+pydantic-settings==2.8.1
+python-dotenv==1.0.1
+python-multipart==0.0.20
+SQLAlchemy==2.0.40
+# Needed for QuickML LLM serving (phase 4), forecasting (6), file store (7).
+# Pins typing-extensions to 4.12.2, which also satisfies pydantic 2.11.7.
+zcatalyst-sdk==1.4.0

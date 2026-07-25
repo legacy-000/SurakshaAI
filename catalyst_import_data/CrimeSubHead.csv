@@ -1,9 +1,0 @@
-CrimeSubHeadID,CrimeHeadID,CrimeHeadName,SeqID
-1,1,Theft,1
-2,1,Robbery,2
-3,2,Murder,3
-4,2,Assault,4
-5,2,Kidnapping,5
-6,1,Burglary,6
-7,3,Cheating,7
-8,1,Snatching,8

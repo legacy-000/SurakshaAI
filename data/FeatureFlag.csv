@@ -1,4 +1,0 @@
-flag_id,flag_name,flag_value,description
-1,voice_enabled,1,Enable voice input/output
-2,kannada_enabled,1,Enable Kannada language support
-3,forecast_enabled,1,Enable forecasting module

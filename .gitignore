@@ -1,13 +1,29 @@
 .env
+.env.*
+!.env.example
+# no secrets — just the deployed API base URL
+!newcrime/frontend/.env.production
+
 __pycache__/
-*.pyc
-.DS_Store
+*.py[cod]
+
 node_modules/
 dist/
-build/
-.vscode/
-.idea/
-*.log
-.venv/
-.build/
+
+# Catalyst function build output (vendored linux wheels + upload bundle)
+newcrime/backend/functions/*/vendor/
+newcrime/backend/functions/*_bundle.zip
+# staged copy of app/ for `catalyst deploy`, and the config it injects
+# credentials into — both transient, never commit either
+newcrime/backend/functions/*/app/
+newcrime/backend/functions/*/catalyst-config.json
+
+# generated Prophet training exports (reproducible; contain case data)
+newcrime/backend/training_data*.csv
+
+# local upload fallback — holds case evidence, never commit
+newcrime/backend/uploads/
+
+# built frontend staged for `catalyst deploy --only client`
+newcrime/backend/client/
 *.tsbuildinfo

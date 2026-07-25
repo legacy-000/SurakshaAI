@@ -1,4 +1,0 @@
-model_id,model_name,model_version,deployed_at,is_active,parameters_json
-1,quickml_llm,v1.0,2025-06-01 00:00:00,1,"{""model"":""llama-3.1-70b"",""temperature"":0.1,""max_tokens"":4096}"
-2,prophet_forecast,prophet_v1.0,2025-06-01 00:00:00,1,"{""yearly_seasonality"":true,""weekly_seasonality"":true,""interval_width"":0.8}"
-3,priority_score,1.0.0,2025-06-01 00:00:00,1,"{""version"":""1.0.0"",""features"":[""case_frequency"",""crime_type_diversity"",""geographic_spread"",""recent_activity_frequency"",""co_accused_network_size"",""arrest_surrender_ratio""]}"
