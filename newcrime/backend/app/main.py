@@ -21,7 +21,9 @@ def _ensure_seeded():
     migrate(real_engine)
     db = SessionLocal()
     try:
-        empty = db.query(models.Case).first() is None
+        empty = db.query(models.User).first() is None or db.query(models.Case).first() is None
+    except Exception:
+        empty = True
     finally:
         db.close()
     if empty:
