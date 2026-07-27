@@ -269,8 +269,3 @@ The platform maintains 24 core tables in Zoho Catalyst Datastore:
 - **Cloud Infrastructure:** Powered by **Zoho Catalyst**.
 - **License:** Open for evaluation under the [MIT License](LICENSE).
 
----
-
-<p center align="center">
-  <b>Built with ❤️ for Karnataka State Police</b>
-</p>
