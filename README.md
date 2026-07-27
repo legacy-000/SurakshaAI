@@ -1,6 +1,5 @@
 # 🛡️ Suraksha AI — Conversational Crime Intelligence Platform
 
-[![KSP Datathon 2026](https://img.shields.io/badge/KSP%20Datathon-2026-00d1ff?style=for-the-badge&logo=shield)](https://github.com/legacy-000/SurakshaAI)
 [![Zoho Catalyst](https://img.shields.io/badge/Powered%20By-Zoho%20Catalyst-FF4500?style=for-the-badge&logo=zoho)](https://catalyst.zoho.in)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
